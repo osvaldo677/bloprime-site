@@ -3,11 +3,32 @@ import Sidebar from "../components/Sidebar";
 
 export default function SidebarLayout() {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden bg-gray-100">
+      {/* Sidebar fixo */}
       <Sidebar />
-      <main className="flex-1 bg-gray-100 p-6 overflow-auto">
-        <Outlet />
-      </main>
+
+      {/* Área principal com scroll independente */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 overflow-y-auto p-6">
+          <Outlet />
+        </main>
+
+        {/* Rodapé institucional */}
+        <footer className="bg-gray-900 text-white py-3 text-center text-xs">
+          <p>© {new Date().getFullYear()} BloPrime. Todos os direitos reservados.</p>
+          <p className="mt-1 text-gray-400">
+            Desenvolvido por{" "}
+            <a
+              href="https://www.bloprime.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:underline font-semibold"
+            >
+              BloPrime
+            </a>
+          </p>
+        </footer>
+      </div>
     </div>
   );
 }

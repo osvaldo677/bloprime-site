@@ -2,8 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/* --- animação para o dropdown --- */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-anim {
+  animation: fadeInDown 0.2s ease-out;
+}
+
 /* Personalizações globais */
 body {
   @apply bg-gray-50 text-gray-900 antialiased;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
+

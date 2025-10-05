@@ -4,18 +4,14 @@ import useAuthGuard from "../hooks/useAuthGuard";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 
-export default function CoachForm() {
+export default function ClubForm() {
   const { session, loading } = useAuthGuard();
 
   const [formData, setFormData] = useState({
     nome: "",
-    data_nascimento: "",
-    nacionalidade: "",
-    experiencia: "",
-    modalidade: "",
-    equipa_atual: "",
-    escalao: "",
-    conquistas: "",
+    localizacao: "",
+    modalidade_principal: "",
+    fundacao: "",
     email: "",
     telefone: "",
     observacoes: "",
@@ -36,29 +32,20 @@ export default function CoachForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!session) return setError("⚠️ Precisa de iniciar sessão.");
-    if (!formData.consentimento)
-      return setError("⚠️ É necessário aceitar a Política de Privacidade.");
+    if (!formData.consentimento) return setError("⚠️ É necessário aceitar a Política de Privacidade.");
 
-    const dataToInsert = {
-      ...formData,
-      user_id: session.user.id,
-      data_nascimento: formData.data_nascimento || null,
-    };
+    const dataToInsert = { ...formData, user_id: session.user.id };
+    const { error } = await supabase.from("clubs").insert([dataToInsert]);
 
-    const { error } = await supabase.from("coaches").insert([dataToInsert]);
     if (error) setError("⚠️ Erro ao guardar: " + error.message);
     else {
-      setMessage("✅ Treinador registado com sucesso!");
+      setMessage("✅ Clube registado com sucesso!");
       setError(null);
       setFormData({
         nome: "",
-        data_nascimento: "",
-        nacionalidade: "",
-        experiencia: "",
-        modalidade: "",
-        equipa_atual: "",
-        escalao: "",
-        conquistas: "",
+        localizacao: "",
+        modalidade_principal: "",
+        fundacao: "",
         email: "",
         telefone: "",
         observacoes: "",
@@ -67,109 +54,66 @@ export default function CoachForm() {
     }
   };
 
-  if (loading) return <p className="text-center">⏳ A carregar...</p>;
-  if (!session) return <p className="text-center">⚠️ Precisa de iniciar sessão.</p>;
+  if (loading) return <p>⏳ A carregar...</p>;
+  if (!session) return <p>⚠️ Precisa de iniciar sessão.</p>;
 
   return (
     <div className="max-w-3xl mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-4">Registo de Treinador</h2>
+      <h2 className="text-2xl font-bold mb-4">Registo de Clube</h2>
       {error && <p className="text-red-600">{error}</p>}
       {message && <p className="text-green-600">{message}</p>}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Nome + Data de Nascimento */}
+        {/* Dados principais */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="block">
-            <span className="text-sm text-gray-600">Nome completo</span>
+            <span className="text-sm text-gray-600">Nome do Clube</span>
             <input
               type="text"
               name="nome"
               value={formData.nome}
               onChange={handleChange}
               className="w-full p-2 border rounded"
-              placeholder="Nome completo"
+              placeholder="Ex: Sport Luanda e Benfica"
               required
             />
           </label>
 
           <label className="block">
-            <span className="text-sm text-gray-600">Data de nascimento</span>
+            <span className="text-sm text-gray-600">Localização</span>
+            <input
+              type="text"
+              name="localizacao"
+              value={formData.localizacao}
+              onChange={handleChange}
+              className="w-full p-2 border rounded"
+              placeholder="Cidade / Província"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm text-gray-600">Modalidade Principal</span>
+            <input
+              type="text"
+              name="modalidade_principal"
+              value={formData.modalidade_principal}
+              onChange={handleChange}
+              className="w-full p-2 border rounded"
+              placeholder="Ex: Futebol"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm text-gray-600">Data de Fundação</span>
             <input
               type="date"
-              name="data_nascimento"
-              value={formData.data_nascimento}
+              name="fundacao"
+              value={formData.fundacao}
               onChange={handleChange}
               className="w-full p-2 border rounded"
             />
           </label>
         </div>
-
-        {/* Nacionalidade + Experiência */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="block">
-            <span className="text-sm text-gray-600">Nacionalidade</span>
-            <input
-              type="text"
-              name="nacionalidade"
-              value={formData.nacionalidade}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              placeholder="Ex: Angola"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm text-gray-600">Anos de experiência</span>
-            <input
-              type="text"
-              name="experiencia"
-              value={formData.experiencia}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              placeholder="Ex: 10 anos"
-            />
-          </label>
-        </div>
-
-        {/* Modalidade + Equipa */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="block">
-            <span className="text-sm text-gray-600">Modalidade</span>
-            <input
-              type="text"
-              name="modalidade"
-              value={formData.modalidade}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              placeholder="Ex: Basquetebol"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm text-gray-600">Equipa atual</span>
-            <input
-              type="text"
-              name="equipa_atual"
-              value={formData.equipa_atual}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              placeholder="Nome da equipa"
-            />
-          </label>
-        </div>
-
-        {/* Escalão */}
-        <label className="block">
-          <span className="text-sm text-gray-600">Escalão</span>
-          <input
-            type="text"
-            name="escalao"
-            value={formData.escalao}
-            onChange={handleChange}
-            className="w-full p-2 border rounded"
-            placeholder="Ex: Sub-21"
-          />
-        </label>
 
         {/* Contactos */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -181,7 +125,7 @@ export default function CoachForm() {
               value={formData.email}
               onChange={handleChange}
               className="w-full p-2 border rounded"
-              placeholder="exemplo@email.com"
+              placeholder="email@exemplo.com"
               required
             />
           </label>
@@ -195,23 +139,10 @@ export default function CoachForm() {
                 setFormData((prev) => ({ ...prev, telefone: "+" + value }))
               }
               inputClass="!w-full !p-2 !border !rounded"
-              placeholder="Ex: +244 900 000 000"
+              placeholder="Digite o número de telefone"
             />
           </label>
         </div>
-
-        {/* Conquistas */}
-        <label className="block">
-          <span className="text-sm text-gray-600">Conquistas</span>
-          <textarea
-            name="conquistas"
-            value={formData.conquistas}
-            onChange={handleChange}
-            maxLength={400}
-            className="w-full p-2 border rounded"
-            placeholder="Máx. 400 caracteres"
-          />
-        </label>
 
         {/* Observações */}
         <label className="block">
@@ -222,15 +153,16 @@ export default function CoachForm() {
             onChange={handleChange}
             maxLength={400}
             className="w-full p-2 border rounded"
-            placeholder="Máx. 400 caracteres"
+            placeholder="Informações adicionais (máx. 400 caracteres)"
           />
         </label>
+        <p className="text-sm text-gray-500">
+          Caracteres restantes: {400 - formData.observacoes.length}
+        </p>
 
         {/* Política de Privacidade */}
         <div className="p-3 border rounded bg-gray-50 text-sm text-gray-700">
-          <h3 className="font-semibold mb-2">
-            BloPrime — Política de Privacidade (resumo)
-          </h3>
+          <h3 className="font-semibold mb-2">BloPrime — Política de Privacidade (resumo)</h3>
           <p className="mb-2">
             Os dados aqui fornecidos serão utilizados para gestão desportiva,
             representação e contacto institucional. Ao aceitar autoriza o
@@ -270,7 +202,7 @@ export default function CoachForm() {
               : "bg-gray-400 cursor-not-allowed"
           }`}
         >
-          Guardar Treinador
+          Guardar Clube
         </button>
       </form>
     </div>
