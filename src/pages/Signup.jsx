@@ -1,7 +1,7 @@
 // src/pages/Signup.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext"; // ✅ usar contexto
+import { useAuth } from "../context/AuthContext"; // ✅ contexto de autenticação
 
 export default function Signup() {
   const [email, setEmail] = useState("");
@@ -11,7 +11,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const { signup } = useAuth(); // ✅ função de registo no contexto
+  const { signup } = useAuth();
 
   const traduzErro = (errorMsg) => {
     const lower = errorMsg.toLowerCase();
@@ -40,14 +40,15 @@ export default function Signup() {
       return;
     }
 
-    // ✅ Signup OK
-    setMsg("✅ Conta criada! Confirme o seu email antes de fazer login.");
+    // ✅ Signup bem-sucedido
+    setMsg("✅ Conta criada! Confirme o seu e-mail para ativar o acesso.");
     setEmail("");
     setPassword("");
     setConfirmPassword("");
 
-    // 👉 opcional: redirecionar direto para login após 2,5s
-    setTimeout(() => navigate("/login", { replace: true }), 2500);
+    // 👉 Redireciona para a página de confirmação de e-mail
+    setTimeout(() => navigate("/confirm-email", { state: { email } }), 1000);
+
     setLoading(false);
   };
 
@@ -61,7 +62,15 @@ export default function Signup() {
           Criar Conta
         </h1>
 
-        {msg && <p className="mb-4 text-center text-red-600">{msg}</p>}
+        {msg && (
+          <p
+            className={`mb-4 text-center ${
+              msg.startsWith("✅") ? "text-green-600" : "text-red-600"
+            }`}
+          >
+            {msg}
+          </p>
+        )}
 
         <input
           type="email"
@@ -91,7 +100,9 @@ export default function Signup() {
         <button
           disabled={loading}
           className={`w-full p-3 rounded text-white ${
-            loading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+            loading
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-green-600 hover:bg-green-700"
           }`}
         >
           {loading ? "📝 A criar conta..." : "Registar"}

@@ -11,6 +11,7 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ConfirmEmail from "./pages/ConfirmEmail"; // ✅ nova importação
 import PoliticaDePrivacidade from "./pages/PoliticaDePrivacidade";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -49,6 +50,7 @@ export default function App() {
       <Route path="/contact" element={<><Navbar /><Contact /></>} />
       <Route path="/login" element={<><Navbar /><Login /></>} />
       <Route path="/signup" element={<><Navbar /><Signup /></>} />
+      <Route path="/confirm-email" element={<ConfirmEmail />} /> {/* ✅ nova rota */}
       <Route path="/politica-de-privacidade" element={<PoliticaDePrivacidade />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
@@ -63,7 +65,7 @@ export default function App() {
         }
       >
         {/* Dashboard & Perfil */}
-        <Route index element={<Dashboard />} /> {/* /app → dashboard default */}
+        <Route index element={<Dashboard />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="profile" element={<Profile />} />
 
@@ -90,7 +92,7 @@ export default function App() {
 
         {/* Apenas Admin */}
         <Route path="admin" element={<AdminPage />} />
-    </Route>
+      </Route>
     </Routes>
   );
 }
