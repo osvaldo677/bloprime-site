@@ -60,12 +60,13 @@ export default function Navbar() {
               )}
 
               {/* Perfil */}
+				  {/*
               <Link
                 to="/app/profile"
                 className="flex items-center gap-1 hover:text-red-400"
               >
                 <FaUser /> Meu Perfil
-              </Link>
+				  </Link>*/}
 
               {/* Registos */}
               <div className="relative group">
