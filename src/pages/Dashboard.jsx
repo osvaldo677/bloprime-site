@@ -1,122 +1,135 @@
-// src/pages/Dashboard.jsx
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { Link, useNavigate } from "react-router-dom";
-import useAuthGuard from "../hooks/useAuthGuard";
-
-// 🔗 Rotas centralizadas (opcional)
-export const APP_ROUTES = {
-  PLAYERS: "/app/players",
-  COACHES: "/app/coaches",
-  CLUBS: "/app/clubs",
-  FEDERATIONS: "/app/federations",
-  REG_ATLETA: "/app/registos/atleta",
-  REG_TREINADOR: "/app/registos/treinador",
-  REG_CLUBE: "/app/registos/clube",
-  REG_FEDERACAO: "/app/registos/federacao",
-};
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import ChooseRoleModal from "../components/ChooseRoleModal";
 
 export default function Dashboard() {
-  const { session, profile, loading } = useAuthGuard();
-  const [counts, setCounts] = useState({
+  const { session, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
     athletes: 0,
     coaches: 0,
     clubs: 0,
     federations: 0,
   });
-  const navigate = useNavigate();
+
+  const user = session?.user;
 
   useEffect(() => {
-    if (session && profile) fetchCounts();
-  }, [session, profile]);
-
-  const fetchCounts = async () => {
-    let queries = [
-      supabase.from("athletes").select("*", { count: "exact", head: true }),
-      supabase.from("coaches").select("*", { count: "exact", head: true }),
-      supabase.from("clubs").select("*", { count: "exact", head: true }),
-      supabase.from("federations").select("*", { count: "exact", head: true }),
-    ];
-
-    if (profile?.role !== "admin") {
-      queries = queries.map((q) => q.eq("user_id", session.user.id));
+    if (authLoading) return; // Esperar até saber se há sessão
+    if (!user) {
+      navigate("/"); // Se não há utilizador autenticado
+      return;
     }
 
-    const [
-      { count: athletes },
-      { count: coaches },
-      { count: clubs },
-      { count: federations },
-    ] = await Promise.all(queries);
+    const loadProfile = async () => {
+      // 1️⃣ Tenta buscar o perfil
+      let { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, role, email")
+        .eq("id", user.id)
+        .single();
 
-    setCounts({
-      athletes: athletes || 0,
-      coaches: coaches || 0,
-      clubs: clubs || 0,
-      federations: federations || 0,
-    });
-  };
+      // 2️⃣ Se não existe, cria-o (garantia contra atraso do trigger)
+      if (!data && !error) {
+        const { data: created, error: insertError } = await supabase
+          .from("profiles")
+          .insert({
+            id: user.id,
+            email: user.email,
+            role: "user",
+            full_name: "",
+          })
+          .select()
+          .single();
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/login");
-  };
+        if (!insertError) data = created;
+      }
 
-  if (loading) return <p className="p-6">⏳ A carregar dashboard...</p>;
+      if (error && error.code !== "PGRST116") {
+        console.error("Erro ao carregar perfil:", error.message);
+      }
 
+      setProfile(data);
+      setLoading(false);
+    };
+
+    loadProfile();
+  }, [user, authLoading, navigate]);
+
+  // 🔹 Estatísticas (igual)
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const [athletes, coaches, clubs, federations] = await Promise.all([
+          supabase.from("athletes").select("*", { count: "exact", head: true }),
+          supabase.from("coaches").select("*", { count: "exact", head: true }),
+          supabase.from("clubs").select("*", { count: "exact", head: true }),
+          supabase
+            .from("federations")
+            .select("*", { count: "exact", head: true }),
+        ]);
+
+        setStats({
+          athletes: athletes.count || 0,
+          coaches: coaches.count || 0,
+          clubs: clubs.count || 0,
+          federations: federations.count || 0,
+        });
+      } catch (error) {
+        console.error("Erro ao carregar estatísticas:", error.message);
+      }
+    };
+
+    loadStats();
+  }, []);
+
+  // 🔹 Se ainda está a carregar
+  if (loading || authLoading) {
+    return <p className="text-center mt-10">⏳ A carregar dados...</p>;
+  }
+
+  // 🔹 Se o perfil ainda não definiu papel (ou está como 'user'), mostrar modal
+  if (!profile?.role || profile.role.trim() === "" || profile.role === "user") {
+    return <ChooseRoleModal onContinue={() => navigate("/app/choose-role")} />;
+  }
+
+  // 🔹 Dashboard principal
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        📊 Dashboard
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-gray-800">
+        Bem-vindo(a), {profile?.full_name || "Utilizador"} 👋
       </h1>
+      <p className="text-gray-600">
+        Este é o teu painel principal BloPrime — gestão e estatísticas
+        desportivas.
+      </p>
 
-      {/* Estatísticas principais */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <Link to={APP_ROUTES.PLAYERS} className="bg-red-100 p-4 rounded text-center hover:bg-red-200 transition">
-          <p className="font-semibold text-gray-800">Atletas</p>
-          <p className="text-2xl text-red-600 font-bold">{counts.athletes}</p>
-        </Link>
-
-        <Link to={APP_ROUTES.COACHES} className="bg-blue-100 p-4 rounded text-center hover:bg-blue-200 transition">
-          <p className="font-semibold text-gray-800">Treinadores</p>
-          <p className="text-2xl text-blue-600 font-bold">{counts.coaches}</p>
-        </Link>
-
-        <Link to={APP_ROUTES.CLUBS} className="bg-green-100 p-4 rounded text-center hover:bg-green-200 transition">
-          <p className="font-semibold text-gray-800">Clubes</p>
-          <p className="text-2xl text-green-600 font-bold">{counts.clubs}</p>
-        </Link>
-
-        <Link to={APP_ROUTES.FEDERATIONS} className="bg-purple-100 p-4 rounded text-center hover:bg-purple-200 transition">
-          <p className="font-semibold text-gray-800">Federações</p>
-          <p className="text-2xl text-purple-600 font-bold">{counts.federations}</p>
-        </Link>
+      {/* 🔹 Cartões */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+        <div className="bg-white shadow rounded-xl p-4 text-center">
+          <h2 className="text-lg font-semibold text-gray-700">Atletas</h2>
+          <p className="text-2xl font-bold text-red-600">{stats.athletes}</p>
+        </div>
+        <div className="bg-white shadow rounded-xl p-4 text-center">
+          <h2 className="text-lg font-semibold text-gray-700">Treinadores</h2>
+          <p className="text-2xl font-bold text-red-600">{stats.coaches}</p>
+        </div>
+        <div className="bg-white shadow rounded-xl p-4 text-center">
+          <h2 className="text-lg font-semibold text-gray-700">Clubes</h2>
+          <p className="text-2xl font-bold text-red-600">{stats.clubs}</p>
+        </div>
+        <div className="bg-white shadow rounded-xl p-4 text-center">
+          <h2 className="text-lg font-semibold text-gray-700">Federações</h2>
+          <p className="text-2xl font-bold text-red-600">
+            {stats.federations}
+          </p>
+        </div>
       </div>
-
-      {/* Atalhos para registos */}
-      <h2 className="text-xl font-semibold mb-4">➕ Registar</h2>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Link to={APP_ROUTES.REG_ATLETA} className="bg-red-600 text-white p-3 rounded text-center hover:bg-red-700 transition">
-          🏃‍♂️ Atleta
-        </Link>
-        <Link to={APP_ROUTES.REG_TREINADOR} className="bg-blue-600 text-white p-3 rounded text-center hover:bg-blue-700 transition">
-          🧑‍🏫 Treinador
-        </Link>
-        <Link to={APP_ROUTES.REG_CLUBE} className="bg-green-600 text-white p-3 rounded text-center hover:bg-green-700 transition">
-          🏟️ Clube
-        </Link>
-        <Link to={APP_ROUTES.REG_FEDERACAO} className="bg-purple-600 text-white p-3 rounded text-center hover:bg-purple-700 transition">
-          🏆 Federação
-        </Link>
-      </div>
-
-      {/* Logout */}
-      <button
-        onClick={handleLogout}
-        className="mt-8 w-full bg-gray-800 text-white py-2 rounded hover:bg-gray-900 transition"
-      >
-        🚪 Sair
-      </button>
     </div>
   );
 }

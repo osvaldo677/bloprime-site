@@ -1,20 +1,24 @@
 // src/hooks/useLogout.js
-import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useCallback } from "react";
 
 export default function useLogout() {
-  const { logout: contextLogout } = useAuth();
-  const navigate = useNavigate();
-
-  const logout = async () => {
+  const logout = useCallback(() => {
     try {
-      await contextLogout(); // encerra sessão no supabase
-    } catch (err) {
-      console.error("Erro no logout:", err.message);
-    } finally {
-      navigate("/login", { replace: true }); // redireciona com segurança
-    }
-  };
+      // 🔹 1. Remove dados da sessão manual (BloPrime)
+      localStorage.removeItem("bloprime_user");
 
-  return { logout };
+      // 🔹 2. Limpa qualquer resquício antigo (por precaução)
+      localStorage.removeItem("supabase.auth.token");
+      localStorage.removeItem("supabase.auth");
+      localStorage.removeItem("supabase.auth.refresh_token");
+
+      // 🔹 3. Redireciona para o login
+      window.location.replace("/login");
+    } catch (err) {
+      console.error("Erro ao terminar sessão:", err.message);
+      alert("❌ Ocorreu um erro ao terminar sessão.");
+    }
+  }, []);
+
+  return logout;
 }

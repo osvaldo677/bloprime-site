@@ -2,18 +2,18 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { supabase } from "../lib/supabaseClient";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
-
   const navigate = useNavigate();
   const { login } = useAuth();
 
   const traduzErro = (errorMsg) => {
-    const lower = errorMsg.toLowerCase();
+    const lower = errorMsg?.toLowerCase() || "";
     if (lower.includes("email not confirmed"))
       return "⚠️ O seu email ainda não foi confirmado. Verifique a caixa de entrada.";
     if (lower.includes("invalid login credentials"))
@@ -21,29 +21,28 @@ export default function Login() {
     return "⚠️ " + errorMsg;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMsg("");
-    setLoading(true);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setMsg("");
+  setLoading(true);
 
-    const { success, message } = await login(email, password);
+  const { success, message } = await login(email, password);
 
-    if (!success) {
-      setMsg(traduzErro(message));
-      setLoading(false);
-      return;
-    }
+  if (!success) {
+    setMsg(message || "Ocorreu um erro no login.");
+    setLoading(false);
+    return;
+  }
 
-    // ✅ Após login vai para a Home (navbar já mostra itens de utilizador logado)
-    navigate("/", { replace: true });
-  };
+  setLoading(false);
+  // Se o perfil ainda não tem role, o ProtectedRoute leva para /app/choose-role
+  navigate("/app/dashboard", { replace: true });
+};
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-xl shadow-md w-full max-w-sm"
-      >
+      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl shadow-md w-full max-w-sm">
         <h1 className="text-2xl font-bold mb-6 text-center text-blue-700">
           Entrar
         </h1>

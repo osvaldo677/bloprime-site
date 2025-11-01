@@ -1,24 +1,26 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import useAuthGuard from "../hooks/useAuthGuard";
-import PhoneInput from "react-phone-input-2";
-import "react-phone-input-2/lib/style.css";
+import CountrySelect from "../components/CountrySelect";
+import MediaUploader from "../components/MediaUploader";
+import RequestRepresentationButton from "../components/RequestRepresentationButton";
+import { useSession } from "@supabase/auth-helpers-react";
 
 export default function PlayerEdit() {
-  const { session, loading } = useAuthGuard();
   const { id } = useParams();
   const navigate = useNavigate();
+  const session = useSession();
 
   const [formData, setFormData] = useState(null);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (session) fetchPlayer();
-  }, [session]);
+    fetchPlayer();
+  }, [id]);
 
-  const fetchPlayer = async () => {
+  async function fetchPlayer() {
     const { data, error } = await supabase
       .from("athletes")
       .select("*")
@@ -27,6 +29,13 @@ export default function PlayerEdit() {
 
     if (error) setError("Erro ao carregar atleta: " + error.message);
     else setFormData(data);
+  }
+
+  // 🔹 Conversor numérico seguro
+  const numeric = (value) => {
+    if (value === "" || value === null || value === undefined) return null;
+    const num = Number(value);
+    return isNaN(num) ? null : num;
   };
 
   const handleChange = (e) => {
@@ -39,131 +48,204 @@ export default function PlayerEdit() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from("athletes").update(formData).eq("id", id);
+    setSaving(true);
+    setError(null);
+    setMessage(null);
 
-    if (error) setError("Erro ao atualizar: " + error.message);
-    else {
-      setMessage("✅ Atleta atualizado com sucesso!");
-      setTimeout(() => navigate("/players"), 1500);
+    const updatedData = {
+      ...formData,
+      contrato_ate: formData.contrato_valido
+        ? formData.contrato_ate || null
+        : null,
+      data_nascimento: formData.data_nascimento || null,
+      numero_camisola: numeric(formData.numero_camisola),
+      internacionalizacoes: numeric(formData.internacionalizacoes),
+    };
+
+    const { error } = await supabase
+      .from("athletes")
+      .update(updatedData)
+      .eq("id", id);
+
+    if (error) {
+      setError("❌ Erro ao atualizar: " + error.message);
+    } else {
+      setMessage("✅ Dados do atleta atualizados com sucesso!");
+      setTimeout(() => navigate("/app/players"), 1500);
     }
+
+    setSaving(false);
   };
 
-  if (loading) return <p>⏳ A carregar...</p>;
-  if (!session) return <p>⚠️ Precisa de iniciar sessão.</p>;
-  if (!formData) return <p>⏳ A carregar dados...</p>;
+  if (!formData) return <p className="text-center mt-10">⏳ A carregar...</p>;
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-4">Editar Atleta</h2>
-      {error && <p className="text-red-600">{error}</p>}
-      {message && <p className="text-green-600">{message}</p>}
+    <div className="max-w-6xl mx-auto p-6 bg-white rounded shadow">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">✏️ Editar Atleta</h2>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      {error && <p className="text-red-600 mb-2">{error}</p>}
+      {message && <p className="text-green-600 mb-2">{message}</p>}
 
-        {/* Dados Pessoais */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="block">
-            <span className="text-sm text-gray-600">Nome completo</span>
-            <input type="text" name="nome" value={formData.nome || ""} onChange={handleChange} className="w-full p-2 border rounded" placeholder="Nome completo" />
-          </label>
+      <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-6">
+        {/* Dados pessoais */}
+        <label className="block">
+          <span className="text-sm text-gray-600">Nome completo</span>
+          <input
+            type="text"
+            name="nome"
+            value={formData.nome || ""}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </label>
 
-          <label className="block">
-            <span className="text-sm text-gray-600">Data de nascimento</span>
-            <input type="date" name="data_nascimento" value={formData.data_nascimento || ""} onChange={handleChange} className="w-full p-2 border rounded" />
-          </label>
+        <label className="block">
+          <span className="text-sm text-gray-600">Data de nascimento</span>
+          <input
+            type="date"
+            name="data_nascimento"
+            value={formData.data_nascimento || ""}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+          />
+        </label>
 
-          <label className="block">
-            <span className="text-sm text-gray-600">Nacionalidade</span>
-            <input type="text" name="nacionalidade" value={formData.nacionalidade || ""} onChange={handleChange} className="w-full p-2 border rounded" placeholder="Ex: Angola" />
-          </label>
+        <label className="block">
+          <span className="text-sm text-gray-600">Nacionalidade</span>
+          <CountrySelect
+            name="nacionalidade"
+            value={formData.nacionalidade}
+            onChange={handleChange}
+          />
+        </label>
 
-          <label className="block">
-            <span className="text-sm text-gray-600">Altura</span>
-            <input type="text" name="altura" value={formData.altura || ""} onChange={handleChange} className="w-full p-2 border rounded" placeholder="Ex: 1.80" />
-          </label>
+        <label className="block">
+          <span className="text-sm text-gray-600">Modalidade</span>
+          <select
+            name="modalidade"
+            value={formData.modalidade || ""}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+          >
+            <option value="">Selecione...</option>
+            <option value="Futebol">Futebol</option>
+            <option value="Futsal">Futsal</option>
+            <option value="Basquetebol">Basquetebol</option>
+            <option value="Andebol">Andebol</option>
+            <option value="Voleibol">Voleibol</option>
+            <option value="Hóquei">Hóquei</option>
+            <option value="Outra">Outra</option>
+          </select>
+        </label>
 
-          <label className="block">
-            <span className="text-sm text-gray-600">Peso</span>
-            <input type="text" name="peso" value={formData.peso || ""} onChange={handleChange} className="w-full p-2 border rounded" placeholder="Ex: 75kg" />
-          </label>
-
-          <label className="block">
-            <span className="text-sm text-gray-600">Modalidade</span>
-            <input type="text" name="modalidade" value={formData.modalidade || ""} onChange={handleChange} className="w-full p-2 border rounded" placeholder="Ex: Futebol" />
-          </label>
-
-          <label className="block">
-            <span className="text-sm text-gray-600">Posição</span>
-            <input type="text" name="posicao" value={formData.posicao || ""} onChange={handleChange} className="w-full p-2 border rounded" placeholder="Ex: Avançado" />
-          </label>
-
-          <label className="block">
-            <span className="text-sm text-gray-600">Número da camisola</span>
-            <input type="number" name="numero_camisola" value={formData.numero_camisola || ""} onChange={handleChange} className="w-full p-2 border rounded" placeholder="Ex: 10" />
-          </label>
-
-          <label className="block">
-            <span className="text-sm text-gray-600">Agente / Representante</span>
-            <input type="text" name="agente_representante" value={formData.agente_representante || ""} onChange={handleChange} className="w-full p-2 border rounded" />
-          </label>
-
-          <label className="block">
-            <span className="text-sm text-gray-600">Escalão</span>
-            <input type="text" name="escalao" value={formData.escalao || ""} onChange={handleChange} className="w-full p-2 border rounded" />
-          </label>
-
-          <label className="block">
-            <span className="text-sm text-gray-600">Clube atual</span>
-            <input type="text" name="clube_atual" value={formData.clube_atual || ""} onChange={handleChange} className="w-full p-2 border rounded" />
-          </label>
-
-          <label className="flex items-center gap-2">
-            <input type="checkbox" name="contrato_valido" checked={formData.contrato_valido || false} onChange={handleChange} />
-            <span>Tem contrato válido?</span>
-          </label>
+        {/* Contrato */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <input
+              type="checkbox"
+              name="contrato_valido"
+              checked={formData.contrato_valido || false}
+              onChange={handleChange}
+            />
+            <span className="text-sm text-gray-600">Tem contrato válido?</span>
+          </div>
 
           {formData.contrato_valido && (
             <label className="block">
-              <span className="text-sm text-gray-600">Contrato até</span>
-              <input type="date" name="contrato_ate" value={formData.contrato_ate || ""} onChange={handleChange} className="w-full p-2 border rounded" />
+              <span className="text-sm text-gray-600">Contrato válido até</span>
+              <input
+                type="date"
+                name="contrato_ate"
+                value={formData.contrato_ate || ""}
+                onChange={handleChange}
+                className="w-full p-2 border rounded"
+              />
             </label>
           )}
         </div>
 
-        {/* Contactos */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="block">
-            <span className="text-sm text-gray-600">Email</span>
-            <input type="email" name="email" value={formData.email || ""} onChange={handleChange} className="w-full p-2 border rounded" placeholder="exemplo@email.com" />
-          </label>
+        {/* Altura / Peso */}
+        <label className="block">
+          <span className="text-sm text-gray-600">Altura</span>
+          <input
+            type="text"
+            name="altura"
+            value={formData.altura || ""}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+          />
+        </label>
 
-          <label className="block">
-            <span className="text-sm text-gray-600">Telefone</span>
-            <PhoneInput country={"ao"} value={formData.telefone?.replace("+", "") || ""} onChange={(value) => setFormData((prev) => ({ ...prev, telefone: "+" + value }))} inputClass="!w-full !p-2 !border !rounded" />
-          </label>
+        <label className="block">
+          <span className="text-sm text-gray-600">Peso</span>
+          <input
+            type="text"
+            name="peso"
+            value={formData.peso || ""}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+          />
+        </label>
+
+        {/* 📸 Mídia */}
+        <div className="md:col-span-2 border-t pt-4 mt-4">
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">
+            📸 Fotografias e Vídeo
+          </h2>
+
+          <MediaUploader
+            label="Fotografias"
+            bucket="fotos"
+            path={`athletes/${id}`}
+            urls={formData.foto_url ? formData.foto_url.split(",") : []}
+            recordId={id}
+            onUploadComplete={(urls) =>
+              setFormData((prev) => ({ ...prev, foto_url: urls.join(",") }))
+            }
+          />
+
+          <MediaUploader
+            label="Vídeo de apresentação"
+            bucket="videos"
+            path={`athletes/${id}`}
+            urls={formData.video_url ? [formData.video_url] : []}
+            recordId={id}
+            onUploadComplete={(urls) =>
+              setFormData((prev) => ({ ...prev, video_url: urls[0] }))
+            }
+          />
         </div>
 
-        {/* Internacionalizações */}
-        <label className="block">
-          <span className="text-sm text-gray-600">Internacionalizações</span>
-          <input type="number" name="internacionalizacoes" value={formData.internacionalizacoes || ""} onChange={handleChange} className="w-full p-2 border rounded" />
-        </label>
+        {/* Botões */}
+        <div className="md:col-span-2 flex justify-end gap-4 pt-6">
+          <button
+            type="button"
+            onClick={() => navigate("/app/players")}
+            className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+          >
+            {saving ? "A guardar..." : "💾 Guardar alterações"}
+          </button>
+        </div>
 
-        {/* Conquistas */}
-        <label className="block">
-          <span className="text-sm text-gray-600">Conquistas</span>
-          <textarea name="conquistas" value={formData.conquistas || ""} onChange={handleChange} maxLength={400} className="w-full p-2 border rounded" placeholder="Máx. 400 caracteres" />
-        </label>
-
-        {/* Observações */}
-        <label className="block">
-          <span className="text-sm text-gray-600">Observações adicionais</span>
-          <textarea name="observacoes" value={formData.observacoes || ""} onChange={handleChange} maxLength={400} className="w-full p-2 border rounded" placeholder="Máx. 400 caracteres" />
-        </label>
-
-        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-          Guardar Alterações
-        </button>
+        {/* 🔹 Botão de pedido de representação */}
+        {session && (
+          <div className="md:col-span-2 mt-4 text-center border-t pt-4">
+            <RequestRepresentationButton
+              userId={session.user.id}
+              userType="athlete"
+              contratoAtivo={formData.contrato_valido}
+              dataContratoAte={formData.contrato_ate}
+            />
+          </div>
+        )}
       </form>
     </div>
   );

@@ -1,197 +1,133 @@
-import { useState, useEffect } from "react";
-import { supabase } from "../lib/supabaseClient";
+// src/pages/Profile.jsx
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import PhoneInput from "react-phone-input-2";
-import "react-phone-input-2/lib/style.css";
+import { supabase } from "../lib/supabaseClient";
 
 export default function Profile() {
-  const { session, logout } = useAuth();
-  const [profile, setProfile] = useState({ full_name: "", phone: "", role: "" });
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const [profile, setProfile] = useState({
+    full_name: "",
+    phone: "",
+    observacoes: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-  // Password states
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [updating, setUpdating] = useState(false);
-
-  // 🔹 Carregar perfil
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!session?.user) return;
+    if (user) fetchProfile();
+  }, [user]);
+
+  const fetchProfile = async () => {
+    setError("");
+    setMessage("");
+    try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name, phone, role")
-        .eq("id", session.user.id)
+        .select("full_name, phone, observacoes")
+        .eq("user_id", user.id)
         .single();
-      if (error) console.error("Erro ao carregar perfil:", error.message);
-      else setProfile(data || {});
-      setLoading(false);
-    };
-    fetchProfile();
-  }, [session]);
 
-  // 🔹 Atualizar perfil
-  const handleProfileUpdate = async (e) => {
+      if (error) throw error;
+      if (data) setProfile(data);
+    } catch (err) {
+      setError("⚠️ Não foi possível carregar o perfil.");
+      console.error(err.message);
+    }
+  };
+
+  const handleChange = (e) => {
+    setProfile({ ...profile, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!session?.user) return;
+    setLoading(true);
+    setMessage("");
+    setError("");
 
-    setUpdating(true);
     try {
       const { error } = await supabase
         .from("profiles")
         .update({
           full_name: profile.full_name,
           phone: profile.phone,
+          observacoes: profile.observacoes,
           updated_at: new Date(),
         })
-        .eq("id", session.user.id);
-
-      if (error) throw error;
-      alert("✅ Perfil atualizado com sucesso!");
-    } catch (err) {
-      alert("❌ Erro ao atualizar perfil: " + err.message);
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  // 🔹 Alterar palavra-passe
-  const handlePasswordUpdate = async (e) => {
-    e.preventDefault();
-    if (!session?.user) return;
-
-    if (newPassword !== confirmPassword) {
-      alert("❌ As novas palavras-passe não coincidem!");
-      return;
-    }
-
-    setUpdating(true);
-    try {
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        email: session.user.email,
-        password: currentPassword,
-      });
-
-      if (loginError) {
-        alert("❌ Palavra-passe atual incorreta!");
-        return;
-      }
-
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
+        .eq("user_id", user.id);
 
       if (error) throw error;
 
-      alert("✅ Palavra-passe alterada com sucesso. Faça login novamente.");
-      logout();
+      setMessage("✅ Perfil atualizado com sucesso!");
     } catch (err) {
-      alert("❌ Erro ao atualizar palavra-passe: " + err.message);
+      setError("❌ Erro ao atualizar o perfil.");
+      console.error(err.message);
     } finally {
-      setUpdating(false);
+      setLoading(false);
     }
   };
-
-  if (loading) return <p className="p-6">⏳ A carregar perfil...</p>;
-
-  const passwordFormValid =
-    currentPassword.length > 0 &&
-    newPassword.length >= 6 &&
-    confirmPassword.length >= 6 &&
-    newPassword === confirmPassword;
 
   return (
-    <div className="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h1 className="text-2xl font-bold mb-6">👤 Meu Perfil</h1>
+    <div className="min-h-screen bg-gray-50 py-10 px-4">
+      <div className="bg-white max-w-4xl mx-auto rounded-2xl shadow p-8">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">Meu Perfil</h2>
 
-      {/* Formulário Perfil */}
-      <form onSubmit={handleProfileUpdate} className="space-y-4 mb-8">
-        <div>
-          <label className="block mb-1 font-medium">Nome completo</label>
-          <input
-            type="text"
-            value={profile.full_name || ""}
-            onChange={(e) =>
-              setProfile({ ...profile, full_name: e.target.value })
-            }
-            className="w-full border px-3 py-2 rounded"
-            placeholder="Digite o seu nome"
-          />
-        </div>
+        {error && <p className="text-red-600 mb-4">{error}</p>}
+        {message && <p className="text-green-600 mb-4">{message}</p>}
 
-        <div>
-          <label className="block mb-1 font-medium">Telefone</label>
-          <PhoneInput
-            country={"ao"}
-            enableAreaCodes={true}
-            countryCodeEditable={false}
-            preferredCountries={["ao", "pt"]}
-            placeholder="Insira o número de telefone"
-            value={profile.phone || ""}
-            onChange={(phone) => setProfile({ ...profile, phone })}
-            inputStyle={{
-              width: "100%",
-              height: "42px",
-              borderRadius: "6px",
-              border: "1px solid #d1d5db",
-              paddingLeft: "48px",
-            }}
-          />
-        </div>
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Nome Completo
+            </label>
+            <input
+              type="text"
+              name="full_name"
+              value={profile.full_name}
+              onChange={handleChange}
+              className="w-full border rounded-xl p-2 border-gray-300 focus:ring-red-500 focus:border-red-500"
+            />
+          </div>
 
-        <button
-          type="submit"
-          disabled={updating}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {updating ? "🔄 A atualizar..." : "💾 Guardar Alterações"}
-        </button>
-      </form>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Telefone
+            </label>
+            <input
+              type="text"
+              name="phone"
+              value={profile.phone}
+              onChange={handleChange}
+              className="w-full border rounded-xl p-2 border-gray-300 focus:ring-red-500 focus:border-red-500"
+            />
+          </div>
 
-      {/* Alterar Palavra-passe */}
-      <h2 className="text-xl font-semibold mb-4">🔑 Alterar Palavra-passe</h2>
-      <form onSubmit={handlePasswordUpdate} className="space-y-4">
-        <div>
-          <label className="block mb-1 font-medium">Palavra-passe atual</label>
-          <input
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            className="w-full border px-3 py-2 rounded"
-            placeholder="Digite a sua palavra-passe atual"
-          />
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Nova palavra-passe</label>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full border px-3 py-2 rounded"
-            placeholder="Digite a nova palavra-passe"
-          />
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">
-            Confirmar nova palavra-passe
-          </label>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full border px-3 py-2 rounded"
-            placeholder="Confirme a nova palavra-passe"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={!passwordFormValid || updating}
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50"
-        >
-          {updating ? "🔄 A alterar..." : "🔑 Alterar Palavra-passe"}
-        </button>
-      </form>
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Observações
+            </label>
+            <textarea
+              name="observacoes"
+              rows={3}
+              value={profile.observacoes}
+              onChange={handleChange}
+              className="w-full border rounded-xl p-2 border-gray-300 focus:ring-red-500 focus:border-red-500"
+              placeholder="Notas ou informações adicionais..."
+            />
+          </div>
+
+          <div className="sm:col-span-2 flex justify-end">
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-red-600 text-white font-semibold px-6 py-2 rounded-xl hover:bg-red-700 transition"
+            >
+              {loading ? "A guardar..." : "Guardar Alterações"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

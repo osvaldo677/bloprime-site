@@ -1,73 +1,58 @@
 // src/context/AuthContext.jsx
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
 
+  // carregar do localStorage
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) console.error("Erro ao obter sessão:", error.message);
-      setSession(session);
-      setLoading(false);
-    };
-    getSession();
-
-    const { data: subscription } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-      }
-    );
-
-    return () => subscription.subscription.unsubscribe();
+    const stored = localStorage.getItem("bloprime_user");
+    if (stored) setUser(JSON.parse(stored));
   }, []);
 
-  // 🔑 Centralizar login
   const login = async (email, password) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const { data, error } = await supabase.rpc("manual_login", {
+        p_email: email,
+        p_password: password,
       });
       if (error) throw error;
-      setSession(data.session);
+      if (!data || data.length === 0) {
+        throw new Error("Credenciais inválidas ou e-mail não confirmado.");
+      }
+      const u = data[0]; // { id, email, nome, role }
+      localStorage.setItem("bloprime_user", JSON.stringify(u));
+      setUser(u);
       return { success: true };
     } catch (err) {
-      console.error("Erro no login:", err.message);
       return { success: false, message: err.message };
     }
   };
 
-  // 🔑 Centralizar signup
-  const signup = async (email, password) => {
+  const signup = async (email, password, nome) => {
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.rpc("manual_register", {
+        p_email: email,
+        p_password: password,
+        p_nome: nome || null,
+      });
       if (error) throw error;
       return { success: true };
     } catch (err) {
-      console.error("Erro no registo:", err.message);
       return { success: false, message: err.message };
     }
   };
 
-  // 🔑 Centralizar logout
-  const logout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-    } catch (err) {
-      console.error("Erro no logout:", err.message);
-    } finally {
-      setSession(null);
-    }
+  const logout = () => {
+    localStorage.removeItem("bloprime_user");
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ session, login, signup, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

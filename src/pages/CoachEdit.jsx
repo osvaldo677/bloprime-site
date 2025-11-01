@@ -1,24 +1,26 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import useAuthGuard from "../hooks/useAuthGuard";
-import PhoneInput from "react-phone-input-2";
-import "react-phone-input-2/lib/style.css";
+import CountrySelect from "../components/CountrySelect";
+import MediaUploader from "../components/MediaUploader";
+import RequestRepresentationButton from "../components/RequestRepresentationButton";
+import { useSession } from "@supabase/auth-helpers-react";
 
 export default function CoachEdit() {
-  const { session, loading } = useAuthGuard();
   const { id } = useParams();
   const navigate = useNavigate();
+  const session = useSession();
 
   const [formData, setFormData] = useState(null);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    if (session) fetchCoach();
-  }, [session]);
+    fetchCoach();
+  }, [id]);
 
-  const fetchCoach = async () => {
+  async function fetchCoach() {
     const { data, error } = await supabase
       .from("coaches")
       .select("*")
@@ -27,7 +29,7 @@ export default function CoachEdit() {
 
     if (error) setError("Erro ao carregar treinador: " + error.message);
     else setFormData(data);
-  };
+  }
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -39,233 +41,163 @@ export default function CoachEdit() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!formData.consentimento) {
-      setError("⚠️ É necessário aceitar a Política de Privacidade.");
-      return;
-    }
+    setUpdating(true);
 
     const { error } = await supabase
       .from("coaches")
       .update({
         ...formData,
-        data_nascimento: formData.data_nascimento || null, // ✅ evita erro de data
+        contrato_ate: formData.tem_contrato_valido
+          ? formData.contrato_ate || null
+          : null,
       })
       .eq("id", id);
 
     if (error) setError("Erro ao atualizar: " + error.message);
     else {
       setMessage("✅ Treinador atualizado com sucesso!");
-      setTimeout(() => navigate("/coaches"), 1500);
+      setTimeout(() => navigate("/app/coaches"), 1200);
     }
+
+    setUpdating(false);
   };
 
-  if (loading) return <p>⏳ A carregar...</p>;
-  if (!session) return <p>⚠️ Precisa de iniciar sessão.</p>;
-  if (!formData) return <p>⏳ A carregar dados...</p>;
+  if (!formData) return <p>⏳ A carregar...</p>;
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-4">Editar Treinador</h2>
+    <div className="max-w-6xl mx-auto p-6 bg-white shadow rounded-lg">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">
+        ✏️ Editar Treinador
+      </h2>
+
       {error && <p className="text-red-600">{error}</p>}
       {message && <p className="text-green-600">{message}</p>}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Nome + Data de Nascimento */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="block">
-            <span className="text-sm text-gray-600">Nome completo</span>
-            <input
-              type="text"
-              name="nome"
-              value={formData.nome || ""}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              placeholder="Nome completo"
-              required
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm text-gray-600">Data de nascimento</span>
-            <input
-              type="date"
-              name="data_nascimento"
-              value={formData.data_nascimento || ""}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-            />
-          </label>
-        </div>
-
-        {/* Nacionalidade + Experiência */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="block">
-            <span className="text-sm text-gray-600">Nacionalidade</span>
-            <input
-              type="text"
-              name="nacionalidade"
-              value={formData.nacionalidade || ""}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              placeholder="Ex: Angola"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm text-gray-600">Anos de experiência</span>
-            <input
-              type="text"
-              name="experiencia"
-              value={formData.experiencia || ""}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              placeholder="Ex: 10 anos"
-            />
-          </label>
-        </div>
-
-        {/* Modalidade + Equipa */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="block">
-            <span className="text-sm text-gray-600">Modalidade</span>
-            <input
-              type="text"
-              name="modalidade"
-              value={formData.modalidade || ""}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              placeholder="Ex: Basquetebol"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm text-gray-600">Equipa atual</span>
-            <input
-              type="text"
-              name="equipa_atual"
-              value={formData.equipa_atual || ""}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              placeholder="Nome da equipa"
-            />
-          </label>
-        </div>
-
-        {/* Escalão */}
+      <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-6">
+        {/* Dados pessoais */}
         <label className="block">
-          <span className="text-sm text-gray-600">Escalão</span>
+          <span className="text-sm text-gray-600">Nome completo</span>
           <input
             type="text"
-            name="escalao"
-            value={formData.escalao || ""}
+            name="nome"
+            value={formData.nome || ""}
             onChange={handleChange}
             className="w-full p-2 border rounded"
-            placeholder="Ex: Sub-21"
+            required
           />
         </label>
 
-        {/* Contactos */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="block">
-            <span className="text-sm text-gray-600">Email</span>
+        <label className="block">
+          <span className="text-sm text-gray-600">País / Nacionalidade</span>
+          <CountrySelect
+            name="nacionalidade"
+            value={formData.nacionalidade}
+            onChange={handleChange}
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-sm text-gray-600">Modalidade</span>
+          <select
+            name="modalidade"
+            value={formData.modalidade || ""}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+          >
+            <option value="">Selecione...</option>
+            <option value="Futebol">Futebol</option>
+            <option value="Futsal">Futsal</option>
+            <option value="Basquetebol">Basquetebol</option>
+            <option value="Andebol">Andebol</option>
+            <option value="Voleibol">Voleibol</option>
+            <option value="Hóquei">Hóquei</option>
+            <option value="Outra">Outra</option>
+          </select>
+        </label>
+
+        <div>
+          <div className="flex items-center gap-2 mb-1">
             <input
-              type="email"
-              name="email"
-              value={formData.email || ""}
+              type="checkbox"
+              name="tem_contrato_valido"
+              checked={formData.tem_contrato_valido || false}
               onChange={handleChange}
-              className="w-full p-2 border rounded"
-              placeholder="exemplo@email.com"
-              required
             />
-          </label>
+            <span className="text-sm text-gray-600">Tem contrato válido?</span>
+          </div>
 
-          <label className="block">
-            <span className="text-sm text-gray-600">Telefone</span>
-            <PhoneInput
-              country={"ao"}
-              value={formData.telefone?.replace("+", "") || ""}
-              onChange={(value) =>
-                setFormData((prev) => ({ ...prev, telefone: "+" + value }))
-              }
-              inputClass="!w-full !p-2 !border !rounded"
-              placeholder="Digite o número de telefone"
-            />
-          </label>
+          {formData.tem_contrato_valido && (
+            <label className="block">
+              <span className="text-sm text-gray-600">Contrato válido até</span>
+              <input
+                type="date"
+                name="contrato_ate"
+                value={formData.contrato_ate || ""}
+                onChange={handleChange}
+                className="w-full p-2 border rounded"
+              />
+            </label>
+          )}
         </div>
 
-        {/* Conquistas */}
-        <label className="block">
-          <span className="text-sm text-gray-600">Conquistas</span>
-          <textarea
-            name="conquistas"
-            value={formData.conquistas || ""}
-            onChange={handleChange}
-            className="w-full p-2 border rounded"
-            placeholder="Máx. 400 caracteres"
-            maxLength={400}
-          />
-        </label>
+        {/* 📸 Mídia */}
+        <div className="md:col-span-2 border-t pt-4 mt-4">
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">
+            📸 Fotografias e Vídeo
+          </h2>
 
-        {/* Observações */}
-        <label className="block">
-          <span className="text-sm text-gray-600">Observações</span>
-          <textarea
-            name="observacoes"
-            value={formData.observacoes || ""}
-            onChange={handleChange}
-            className="w-full p-2 border rounded"
-            placeholder="Máx. 400 caracteres"
-            maxLength={400}
+          <MediaUploader
+            label="Fotografias"
+            bucket="fotos"
+            path={`coaches/${id}`}
+            urls={formData.foto_url ? formData.foto_url.split(",") : []}
+            recordId={id}
+            onUploadComplete={(urls) =>
+              setFormData((prev) => ({ ...prev, foto_url: urls.join(",") }))
+            }
           />
-        </label>
 
-        {/* Política de Privacidade */}
-        <div className="p-3 border rounded bg-gray-50 text-sm text-gray-700">
-          <h3 className="font-semibold mb-2">
-            BloPrime — Política de Privacidade (resumo)
-          </h3>
-          <p className="mb-2">
-            Os dados aqui fornecidos serão utilizados para gestão desportiva,
-            representação e contacto institucional. Ao aceitar autoriza o
-            tratamento conforme a lei aplicável.
-          </p>
-          <p>
-            Consulte a{" "}
-            <a
-              href="/politica-de-privacidade"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 underline"
-            >
-              política completa
-            </a>{" "}
-            (abre em nova aba).
-          </p>
+          <MediaUploader
+            label="Vídeo de apresentação"
+            bucket="videos"
+            path={`coaches/${id}`}
+            urls={formData.video_url ? [formData.video_url] : []}
+            recordId={id}
+            onUploadComplete={(urls) =>
+              setFormData((prev) => ({ ...prev, video_url: urls[0] }))
+            }
+          />
         </div>
 
-        {/* Consentimento */}
-        <label className="flex items-start gap-2 mt-3">
-          <input
-            type="checkbox"
-            name="consentimento"
-            checked={formData.consentimento || false}
-            onChange={handleChange}
-          />
-          <span>Declaro que li e aceito a Política de Privacidade</span>
-        </label>
+        {/* Botões */}
+        <div className="md:col-span-2 flex justify-end gap-4 pt-6">
+          <button
+            type="button"
+            onClick={() => navigate("/app/coaches")}
+            className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={updating}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+          >
+            {updating ? "A guardar..." : "💾 Guardar alterações"}
+          </button>
+        </div>
 
-        <button
-          type="submit"
-          disabled={!formData.consentimento}
-          className={`px-4 py-2 rounded text-white ${
-            formData.consentimento
-              ? "bg-red-600 hover:bg-red-700"
-              : "bg-gray-400 cursor-not-allowed"
-          }`}
-        >
-          Guardar Alterações
-        </button>
+        {/* 🔹 Botão de pedido de representação */}
+        {session && (
+          <div className="md:col-span-2 mt-4 text-center border-t pt-4">
+            <RequestRepresentationButton
+              userId={session.user.id}
+              userType="coach"
+              contratoAtivo={formData.tem_contrato_valido}
+              dataContratoAte={formData.contrato_ate}
+            />
+          </div>
+        )}
       </form>
     </div>
   );

@@ -1,25 +1,35 @@
+// src/components/ProtectedRoute.jsx
 import { Navigate, Outlet } from "react-router-dom";
-import useAuthGuard from "../hooks/useAuthGuard";
+import { useAuth } from "../context/AuthContext";
 
-export default function ProtectedRoute({ roles, children }) {
-  const { session, profile, loading } = useAuthGuard();
+export default function ProtectedRoute({ allowedRoles = [] }) {
+  const { user } = useAuth();
 
-  if (loading) {
-    return <p className="p-6 text-center">⏳ A verificar permissões...</p>;
-  }
-
-  if (!session) {
+  // 🔹 Se não houver utilizador autenticado
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  if (roles && profile && !roles.includes(profile.role)) {
+  // 🔹 Se a rota requer papéis específicos e o utilizador não está autorizado
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     return (
-      <p className="p-6 text-center text-red-600">
-        ❌ Sem acesso. Permissão insuficiente.
-      </p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <h1 className="text-2xl font-bold text-red-600 mb-2">
+          🚫 Acesso negado
+        </h1>
+        <p className="text-gray-600 mb-4">
+          Não tem permissão para aceder a esta secção.
+        </p>
+        <a
+          href="/app/dashboard"
+          className="text-blue-600 hover:underline font-medium"
+        >
+          Voltar ao painel
+        </a>
+      </div>
     );
   }
 
-  // 👉 Se existir children explícito (ex: SidebarLayout), usa-o; senão, Outlet
-  return children ? children : <Outlet />;
+  // 🔹 Caso tudo OK → renderiza o conteúdo da rota interna
+  return <Outlet />;
 }

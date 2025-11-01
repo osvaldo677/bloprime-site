@@ -1,22 +1,19 @@
 // src/components/Navbar.jsx
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { FaBars, FaTimes, FaUser } from "react-icons/fa";
-import { useAuth } from "../context/AuthContext";   // sessão
-import useAuthGuard from "../hooks/useAuthGuard";   // perfil (role, etc.)
-import useLogout from "../hooks/useLogout";         // logout com redirect
+import { useAuth } from "../context/AuthContext";
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { session } = useAuth();
-  const { profile } = useAuthGuard();
-  const { logout } = useLogout();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
-  const user = session?.user || null;
-  const role = profile?.role || "user";
-
-  // Só mostra "Olá, ..." se existir nome completo válido
-  const showGreeting = profile?.full_name && profile.full_name.trim() !== "";
+  const handleLogout = () => {
+    logout();
+    setMobileOpen(false);
+    navigate("/"); // volta para Home
+  };
 
   return (
     <header className="bg-gray-900 text-white shadow">
@@ -28,20 +25,41 @@ export default function Navbar() {
 
         {/* MENU DESKTOP */}
         <nav className="hidden md:flex items-center gap-6">
-          <Link to="/" className="hover:text-red-400">Home</Link>
+          <Link to="/" className="hover:text-red-400">
+            Home
+          </Link>
+          <Link to="/services" className="hover:text-red-400">
+            Serviços
+          </Link>
+          <Link to="/about" className="hover:text-red-400">
+            Sobre
+          </Link>
+          <Link to="/contact" className="hover:text-red-400">
+            Contacto
+          </Link>
 
           {!user ? (
-            <Link to="/login" className="hover:text-red-400">Login</Link>
+            <>
+              <Link to="/login" className="hover:text-red-400">
+                Entrar
+              </Link>
+              <Link
+                to="/signup"
+                className="bg-red-600 px-3 py-1.5 rounded hover:bg-red-700"
+              >
+                Criar Conta
+              </Link>
+            </>
           ) : (
             <>
-              {/* 👋 Saudação */}
-              {showGreeting && (
+              {/* Saudação */}
+              {user?.nome && (
                 <span className="text-sm text-gray-300">
-                  👋 Olá, {profile.full_name.split(" ")[0]}
+                  👋 Olá, {user.nome.split(" ")[0]}
                 </span>
               )}
 
-              {/* ✅ Meu Perfil */}
+              {/* Perfil */}
               <Link
                 to="/app/profile"
                 className="flex items-center gap-1 hover:text-red-400"
@@ -49,29 +67,52 @@ export default function Navbar() {
                 <FaUser /> Meu Perfil
               </Link>
 
-              {/* Menu Registar */}
+              {/* Registos */}
               <div className="relative group">
-                <span className="hover:text-red-400 cursor-pointer">Registar ▾</span>
+                <span className="hover:text-red-400 cursor-pointer">
+                  Registar ▾
+                </span>
                 <div className="absolute left-0 top-full hidden group-hover:block bg-white text-black rounded shadow-lg z-10">
-                  <Link to="/app/registos/atleta" className="block px-4 py-2 hover:bg-gray-100">Atleta</Link>
-                  <Link to="/app/registos/treinador" className="block px-4 py-2 hover:bg-gray-100">Treinador</Link>
-                  <Link to="/app/registos/clube" className="block px-4 py-2 hover:bg-gray-100">Clube</Link>
-                  <Link to="/app/registos/federacao" className="block px-4 py-2 hover:bg-gray-100">Federação</Link>
+                  <Link
+                    to="/app/registos/atleta"
+                    className="block px-4 py-2 hover:bg-gray-100"
+                  >
+                    Atleta
+                  </Link>
+                  <Link
+                    to="/app/registos/treinador"
+                    className="block px-4 py-2 hover:bg-gray-100"
+                  >
+                    Treinador
+                  </Link>
+                  <Link
+                    to="/app/registos/clube"
+                    className="block px-4 py-2 hover:bg-gray-100"
+                  >
+                    Clube
+                  </Link>
+                  <Link
+                    to="/app/registos/federacao"
+                    className="block px-4 py-2 hover:bg-gray-100"
+                  >
+                    Federação
+                  </Link>
                 </div>
               </div>
 
-              {/* Apenas admin */}
-              {role === "admin" && (
-                <Link to="/app/admin" className="hover:text-red-400 font-semibold">
+              {/* Admin */}
+              {user?.role === "admin" && (
+                <Link
+                  to="/app/admin"
+                  className="hover:text-red-400 font-semibold"
+                >
                   Painel Admin
                 </Link>
               )}
 
-              <button
-                onClick={logout}
-                className="hover:text-red-400"
-              >
-                Logout
+              {/* Logout */}
+              <button onClick={handleLogout} className="hover:text-red-400">
+                Terminar Sessão
               </button>
             </>
           )}
@@ -89,16 +130,27 @@ export default function Navbar() {
       {/* MENU MOBILE */}
       {mobileOpen && (
         <div className="md:hidden bg-gray-900 px-4 pb-4 space-y-2">
-          <Link to="/" className="block hover:text-red-400">Home</Link>
+          <Link to="/" className="block hover:text-red-400">
+            Home
+          </Link>
 
           {!user ? (
-            <Link to="/login" className="block hover:text-red-400">Login</Link>
+            <>
+              <Link to="/login" className="block hover:text-red-400">
+                Entrar
+              </Link>
+              <Link
+                to="/signup"
+                className="block hover:text-red-400 font-semibold"
+              >
+                Criar Conta
+              </Link>
+            </>
           ) : (
             <>
-              {/* 👋 Saudação mobile */}
-              {showGreeting && (
+              {user?.nome && (
                 <p className="text-sm text-gray-300 mb-2">
-                  👋 Olá, {profile.full_name.split(" ")[0]}
+                  👋 Olá, {user.nome.split(" ")[0]}
                 </p>
               )}
 
@@ -112,24 +164,47 @@ export default function Navbar() {
               <div>
                 <span className="block font-semibold">Registar</span>
                 <div className="pl-4 mt-1 space-y-1">
-                  <Link to="/app/registos/atleta" className="block hover:text-red-400">Atleta</Link>
-                  <Link to="/app/registos/treinador" className="block hover:text-red-400">Treinador</Link>
-                  <Link to="/app/registos/clube" className="block hover:text-red-400">Clube</Link>
-                  <Link to="/app/registos/federacao" className="block hover:text-red-400">Federação</Link>
+                  <Link
+                    to="/app/registos/atleta"
+                    className="block hover:text-red-400"
+                  >
+                    Atleta
+                  </Link>
+                  <Link
+                    to="/app/registos/treinador"
+                    className="block hover:text-red-400"
+                  >
+                    Treinador
+                  </Link>
+                  <Link
+                    to="/app/registos/clube"
+                    className="block hover:text-red-400"
+                  >
+                    Clube
+                  </Link>
+                  <Link
+                    to="/app/registos/federacao"
+                    className="block hover:text-red-400"
+                  >
+                    Federação
+                  </Link>
                 </div>
               </div>
 
-              {role === "admin" && (
-                <Link to="/app/admin" className="block hover:text-red-400 font-semibold mt-2">
+              {user?.role === "admin" && (
+                <Link
+                  to="/app/admin"
+                  className="block hover:text-red-400 font-semibold mt-2"
+                >
                   Painel Admin
                 </Link>
               )}
 
               <button
-                onClick={() => { logout(); setMobileOpen(false); }}
+                onClick={handleLogout}
                 className="block hover:text-red-400 mt-2"
               >
-                Logout
+                Terminar Sessão
               </button>
             </>
           )}
