@@ -11,3 +11,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false // sem magic links -> mais previsível
   },
 });
+
+console.log("SUPABASE_URL:", import.meta.env.VITE_SUPABASE_URL);
+console.log("SUPABASE_KEY:", import.meta.env.VITE_SUPABASE_ANON_KEY?.slice(0, 10) + "...");
+
