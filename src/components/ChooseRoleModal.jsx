@@ -1,27 +1,31 @@
-export default function ChooseRoleModal({ onContinue }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-md text-center animate-fadeIn">
-        <h2 className="text-2xl font-bold text-gray-800 mb-3">
-          👋 Bem-vindo à BloPrime
-        </h2>
+// src/components/ChooseRoleModal.jsx
+import { Mail, UserCheck } from "lucide-react";
 
-        <p className="text-gray-600 mb-6">
-          Antes de continuar, precisamos saber como pretende usar o sistema.
-          <br />
-          Escolha o seu tipo de perfil: Jogador, Treinador, Clube ou Federação.
-        </p>
+export default function ChooseRoleModal({
+  title = "Escolher tipo de perfil",
+  description = "Selecione o tipo de perfil que pretende criar para continuar o registo.",
+  buttonText = "Continuar",
+  onConfirm,
+  variant = "role", // "role" | "email"
+}) {
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+        {variant === "email" ? (
+          <Mail className="mx-auto text-blue-600 w-12 h-12 mb-3" />
+        ) : (
+          <UserCheck className="mx-auto text-blue-600 w-12 h-12 mb-3" />
+        )}
+
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">{title}</h2>
+        <p className="text-gray-600 mb-6">{description}</p>
 
         <button
-          onClick={onContinue}
-          className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 rounded-xl transition-all duration-200 shadow-sm"
+          onClick={onConfirm}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 font-medium transition-all duration-200"
         >
-          Definir o meu perfil
+          {buttonText}
         </button>
-
-        <p className="text-xs text-gray-400 mt-4">
-          Poderá alterar este perfil mais tarde com apoio do administrador.
-        </p>
       </div>
     </div>
   );

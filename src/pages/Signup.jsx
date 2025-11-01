@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import ChooseRoleModal from "../components/ChooseRoleModal";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -9,6 +10,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [showModal, setShowModal] = useState(false);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -17,16 +19,14 @@ export default function Signup() {
     setError("");
     setMessage("");
 
-    if (!form.nome || !form.email || !form.password || !form.confirm) {
+    if (!form.nome || !form.email || !form.password || !form.confirm)
       return setError("⚠️ Preencha todos os campos obrigatórios.");
-    }
-    if (form.password !== form.confirm) {
+
+    if (form.password !== form.confirm)
       return setError("⚠️ As palavras-passe não coincidem.");
-    }
 
     setLoading(true);
     try {
-      // 🔹 Chama o RPC manual_register diretamente
       const { data, error } = await supabase.rpc("manual_register", {
         p_nome: form.nome,
         p_email: form.email,
@@ -36,9 +36,9 @@ export default function Signup() {
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "Erro desconhecido");
 
-      // 🔹 Redireciona para a página de confirmação
       setMessage("✅ Conta criada! Enviámos um e-mail de confirmação.");
-      setTimeout(() => navigate("/confirm-email-sent"), 1500);
+      // 👉 Mostra o modal de confirmação de e-mail
+      setShowModal(true);
     } catch (err) {
       console.error("Erro ao criar conta:", err.message);
       setError("❌ " + err.message);
@@ -47,8 +47,14 @@ export default function Signup() {
     }
   };
 
+  // Quando o utilizador confirma que já clicou no e-mail
+  const handleProceed = () => {
+    setShowModal(false);
+    navigate("/app/choose-role");
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 relative">
       <form
         onSubmit={handleSubmit}
         className="bg-white shadow-lg rounded-2xl p-8 w-full max-w-md"
@@ -113,6 +119,15 @@ export default function Signup() {
           </span>
         </p>
       </form>
+
+      {showModal && (
+        <ChooseRoleModal
+          title="Confirmação de e-mail"
+          description={`Enviámos um e-mail de confirmação para ${form.email}. Clique no link recebido e depois pressione o botão abaixo para continuar.`}
+          buttonText="Já confirmei o e-mail"
+          onConfirm={handleProceed}
+        />
+      )}
     </div>
   );
 }

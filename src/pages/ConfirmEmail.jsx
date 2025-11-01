@@ -21,8 +21,8 @@ export default function ConfirmEmail() {
   async function confirmEmail(token) {
     try {
       setLoading(true);
-	  setTimeout(() => navigate("/login"), 2000);
-      //const { data, error } = await supabase.rpc("confirm_email", { p_token: token });
+	  //setTimeout(() => navigate("/login"), 2000);
+      const { data, error } = await supabase.rpc("confirm_email", { p_token: token });
       if (error) throw error;
       if (data) {
         setStatus("ok");
