@@ -1,35 +1,61 @@
 // src/components/ProtectedRoute.jsx
 import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import useAuthGuard from "../hooks/useAuthGuard";
+import { supabase } from "../lib/supabaseClient";
+import { useEffect, useState } from "react";
 
-export default function ProtectedRoute({ allowedRoles = [] }) {
-  const { user } = useAuth();
+export default function ProtectedRoute({ children }) {
+  const { user, isAuthenticated, loading } = useAuthGuard();
+  const [checkingProfile, setCheckingProfile] = useState(true);
+  const [hasProfile, setHasProfile] = useState(false);
 
-  // 🔹 Se não houver utilizador autenticado
-  if (!user) {
+  useEffect(() => {
+    async function checkProfile() {
+      if (!user) {
+        setCheckingProfile(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, profile_type")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Erro ao verificar perfil:", error.message);
+          setCheckingProfile(false);
+          return;
+        }
+
+        if (data) {
+          setHasProfile(true);
+        } else {
+          setHasProfile(false);
+        }
+      } catch (err) {
+        console.error("Erro na verificação de perfil:", err.message);
+      } finally {
+        setCheckingProfile(false);
+      }
+    }
+
+    if (isAuthenticated) checkProfile();
+  }, [user, isAuthenticated]);
+
+  if (loading || checkingProfile) {
+    return <p className="text-center mt-10 text-gray-600">A carregar...</p>;
+  }
+
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // 🔹 Se a rota requer papéis específicos e o utilizador não está autorizado
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <h1 className="text-2xl font-bold text-red-600 mb-2">
-          🚫 Acesso negado
-        </h1>
-        <p className="text-gray-600 mb-4">
-          Não tem permissão para aceder a esta secção.
-        </p>
-        <a
-          href="/app/dashboard"
-          className="text-blue-600 hover:underline font-medium"
-        >
-          Voltar ao painel
-        </a>
-      </div>
-    );
+  // 🔸 Se o utilizador não tem perfil, redireciona para /app/choose-role
+  if (!hasProfile) {
+    return <Navigate to="/app/choose-role" replace />;
   }
 
-  // 🔹 Caso tudo OK → renderiza o conteúdo da rota interna
-  return <Outlet />;
+  return children ? children : <Outlet />;
 }
