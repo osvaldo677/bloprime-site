@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-//import ChooseRoleModal from "../components/ChooseRoleModal";
 import ConfirmEmailSentModal from "../components/ConfirmEmailSentModal"; // adiciona este import
 
 
@@ -121,16 +120,7 @@ export default function Signup() {
           </span>
         </p>
       </form>
-/*
-      {showModal && (
-        <ChooseRoleModal
-          title="Confirmação de e-mail"
-          description={`Enviámos um e-mail de confirmação para ${form.email}. Clique no link recebido e depois pressione o botão abaixo para continuar.`}
-          buttonText="Já confirmei o e-mail"
-          onConfirm={handleProceed}
-        />
-      )}
-*/
+
 {showModal && (
   <ConfirmEmailSentModal
     email={form.email}
