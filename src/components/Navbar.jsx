@@ -134,6 +134,18 @@ export default function Navbar() {
             Home
           </Link>
 
+{/* 👇 ADIÇÃO: links públicos no mobile */}
+    <Link to="/services" className="block hover:text-red-400" onClick={() => setMobileOpen(false)}>
+      Serviços
+    </Link>
+    <Link to="/about" className="block hover:text-red-400" onClick={() => setMobileOpen(false)}>
+      Sobre
+    </Link>
+    <Link to="/contact" className="block hover:text-red-400" onClick={() => setMobileOpen(false)}>
+      Contacto
+    </Link>
+    {/* 👆 FIM DA ADIÇÃO */}
+
           {!user ? (
             <>
               <Link to="/login" className="block hover:text-red-400">

@@ -2,7 +2,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import ChooseRoleModal from "../components/ChooseRoleModal";
+//import ChooseRoleModal from "../components/ChooseRoleModal";
+import ConfirmEmailSentModal from "../components/ConfirmEmailSentModal"; // adiciona este import
+
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -119,7 +121,7 @@ export default function Signup() {
           </span>
         </p>
       </form>
-
+/*
       {showModal && (
         <ChooseRoleModal
           title="Confirmação de e-mail"
@@ -128,6 +130,13 @@ export default function Signup() {
           onConfirm={handleProceed}
         />
       )}
+*/
+{showModal && (
+  <ConfirmEmailSentModal
+    email={form.email}
+    onConfirmed={() => navigate("/app/choose-role")}
+  />
+)}
     </div>
   );
 }
