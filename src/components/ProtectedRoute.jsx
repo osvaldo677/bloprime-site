@@ -11,34 +11,40 @@ export default function ProtectedRoute({ children }) {
   const location = useLocation();
 
   useEffect(() => {
-    async function checkProfile() {
-      if (!user) {
+  async function checkProfile() {
+    if (!user || !user.id) {
+      console.warn("⚠️ Utilizador ainda não disponível para verificar perfil.");
+//      setCheckingProfile(false);
+      return;
+    }
+
+    try {
+      console.log("🔎 Verificando perfil do utilizador:", user.id);
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, profile_type")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Erro ao verificar perfil:", error.message);
         setCheckingProfile(false);
         return;
       }
 
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("id, profile_type")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        if (error) {
-          console.error("Erro ao verificar perfil:", error.message);
-          return;
-        }
-
-        setHasProfile(!!data);
-      } catch (err) {
-        console.error("Erro na verificação de perfil:", err.message);
-      } finally {
-        setCheckingProfile(false);
-      }
+      setHasProfile(!!data);
+    } catch (err) {
+      console.error("Erro na verificação de perfil:", err.message);
+    } finally {
+      setCheckingProfile(false);
     }
+  }
 
-    if (isAuthenticated) checkProfile();
-  }, [user, isAuthenticated]);
+  if (isAuthenticated && !hasProfile && checkingProfile) {
+    checkProfile();
+  }
+}, [user, isAuthenticated]);
 
   if (loading || checkingProfile) {
     return (

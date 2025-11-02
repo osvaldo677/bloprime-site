@@ -1,17 +1,22 @@
-// src/context/AuthContext.jsx
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-
-  // carregar do localStorage
-  useEffect(() => {
+  const [user, setUser] = useState(() => {
     const stored = localStorage.getItem("bloprime_user");
-    if (stored) setUser(JSON.parse(stored));
-  }, []);
+    return stored ? JSON.parse(stored) : null;
+  });
+
+  // sincroniza alterações no localStorage em tempo real
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("bloprime_user", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("bloprime_user");
+    }
+  }, [user]);
 
   const login = async (email, password) => {
     try {
@@ -20,11 +25,10 @@ export function AuthProvider({ children }) {
         p_password: password,
       });
       if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error("Credenciais inválidas ou e-mail não confirmado.");
-      }
-      const u = data[0]; // { id, email, nome, role }
-      localStorage.setItem("bloprime_user", JSON.stringify(u));
+
+      const u = data?.[0];
+      if (!u) throw new Error("Credenciais inválidas ou e-mail não confirmado.");
+
       setUser(u);
       return { success: true };
     } catch (err) {
@@ -40,16 +44,17 @@ export function AuthProvider({ children }) {
         p_nome: nome || null,
       });
       if (error) throw error;
+
+      const newUser = data?.[0];
+      if (newUser) setUser(newUser);
+
       return { success: true };
     } catch (err) {
       return { success: false, message: err.message };
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("bloprime_user");
-    setUser(null);
-  };
+  const logout = () => setUser(null);
 
   return (
     <AuthContext.Provider value={{ user, login, signup, logout }}>

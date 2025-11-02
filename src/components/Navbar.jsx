@@ -178,13 +178,13 @@ export default function Navbar() {
                 <span className="block font-semibold">Registar</span>
                 <div className="pl-4 mt-1 space-y-1">
                   <Link
-                    to="/app/registos/atleta"
+                    to="/registos/atleta"
                     className="block hover:text-red-400"
                   >
                     Atleta
                   </Link>
                   <Link
-                    to="/app/registos/treinador"
+                    to="registos/treinador"
                     className="block hover:text-red-400"
                   >
                     Treinador
