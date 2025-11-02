@@ -2,8 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import ConfirmEmailSentModal from "../components/ConfirmEmailSentModal"; // adiciona este import
-
+import ConfirmEmailSentModal from "../components/ConfirmEmailSentModal";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -34,21 +33,51 @@ export default function Signup() {
         p_password: form.password,
       });
 
-      if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error || "Erro desconhecido");
+      console.log("📤 Resultado manual_register:", { data, error });
+
+      if (error) {
+        console.error("❌ Erro Supabase:", error);
+        throw new Error(error.message || "Erro ao registar utilizador.");
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error("❌ O servidor não retornou dados. Verifique a função manual_register.");
+      }
+
+      const result = Array.isArray(data) ? data[0] : data;
+      console.log("✅ Novo utilizador criado:", result);
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
 
       setMessage("✅ Conta criada! Enviámos um e-mail de confirmação.");
-      // 👉 Mostra o modal de confirmação de e-mail
       setShowModal(true);
     } catch (err) {
-      console.error("Erro ao criar conta:", err.message);
-      setError("❌ " + err.message);
+      console.error("⚠️ Erro ao criar conta:", err);
+
+      let msg = "❌ Ocorreu um erro desconhecido ao criar a conta.";
+
+      if (typeof err.message === "string") {
+        if (err.message.includes("duplicate key")) {
+          msg = "⚠️ Já existe uma conta registada com este e-mail.";
+        } else if (err.message.includes("permission denied")) {
+          msg = "⚠️ Permissão negada. Verifique as políticas de segurança no Supabase.";
+        } else if (err.message.includes("function manual_register")) {
+          msg = "⚠️ Função manual_register não encontrada no Supabase.";
+        } else if (err.message.toLowerCase().includes("mailgun")) {
+          msg = "⚠️ Erro ao enviar o e-mail de confirmação. Verifique a chave ou domínio Mailgun.";
+        } else {
+          msg = "❌ " + err.message;
+        }
+      }
+
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  // Quando o utilizador confirma que já clicou no e-mail
   const handleProceed = () => {
     setShowModal(false);
     navigate("/app/choose-role");
@@ -99,13 +128,13 @@ export default function Signup() {
           />
         </div>
 
-        {error && <p className="text-red-600 text-sm mt-4">{error}</p>}
+        {error && <p className="text-red-600 text-sm mt-4 whitespace-pre-line">{error}</p>}
         {message && <p className="text-green-600 text-sm mt-4">{message}</p>}
 
         <button
           type="submit"
           disabled={loading}
-          className="mt-6 w-full bg-red-600 text-white font-semibold py-2 rounded-xl hover:bg-red-700 transition"
+          className="mt-6 w-full bg-red-600 text-white font-semibold py-2 rounded-xl hover:bg-red-700 transition disabled:opacity-50"
         >
           {loading ? "A criar conta..." : "Criar conta"}
         </button>
@@ -121,12 +150,12 @@ export default function Signup() {
         </p>
       </form>
 
-{showModal && (
-  <ConfirmEmailSentModal
-    email={form.email}
-    onConfirmed={() => navigate("/app/choose-role")}
-  />
-)}
+      {showModal && (
+        <ConfirmEmailSentModal
+          email={form.email}
+          onConfirmed={handleProceed}
+        />
+      )}
     </div>
   );
 }
