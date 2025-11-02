@@ -26,7 +26,9 @@ export default function Signup() {
       return setError("⚠️ As palavras-passe não coincidem.");
 
     setLoading(true);
+
     try {
+      // 🔹 1. Criação do utilizador via função manual_register
       const { data, error } = await supabase.rpc("manual_register", {
         p_nome: form.nome,
         p_email: form.email,
@@ -51,6 +53,33 @@ export default function Signup() {
         throw new Error(result.error);
       }
 
+      // 🔹 2. Envia e-mail de confirmação via Edge Function (Mailgun)
+      try {
+        console.log("📧 A enviar e-mail de confirmação via Edge Function...");
+        const mailResponse = await fetch(
+          "https://ptmprgtvhmdsdccveigt.functions.supabase.co/send-confirmation-email",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: form.email,
+              nome: form.nome,
+              token: result.confirmation_token || "temp-" + Date.now(),
+            }),
+          }
+        );
+
+        const mailResult = await mailResponse.json();
+        console.log("📨 Resultado do envio de e-mail:", mailResult);
+
+        if (!mailResult.ok) {
+          console.warn("⚠️ Falha no envio do e-mail:", mailResult.error || mailResult.response);
+        }
+      } catch (mailErr) {
+        console.error("⚠️ Erro ao enviar e-mail de confirmação:", mailErr);
+      }
+
+      // 🔹 3. Exibe modal de confirmação
       setMessage("✅ Conta criada! Enviámos um e-mail de confirmação.");
       setShowModal(true);
     } catch (err) {
