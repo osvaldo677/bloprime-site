@@ -11,40 +11,35 @@ export default function ProtectedRoute({ children }) {
   const location = useLocation();
 
   useEffect(() => {
-  async function checkProfile() {
-    if (!user || !user.id) {
-      console.warn("⚠️ Utilizador ainda não disponível para verificar perfil.");
-//      setCheckingProfile(false);
-      return;
-    }
-
-    try {
-      console.log("🔎 Verificando perfil do utilizador:", user.id);
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, profile_type")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Erro ao verificar perfil:", error.message);
+    async function checkProfile() {
+      if (!user?.id) {
         setCheckingProfile(false);
         return;
       }
 
-      setHasProfile(!!data);
-    } catch (err) {
-      console.error("Erro na verificação de perfil:", err.message);
-    } finally {
-      setCheckingProfile(false);
-    }
-  }
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, profile_type")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-  if (isAuthenticated && !hasProfile && checkingProfile) {
-    checkProfile();
-  }
-}, [user, isAuthenticated]);
+        if (error) throw error;
+
+        console.log("🔎 Perfil encontrado:", data);
+
+        // Se não existir perfil_type definido → precisa escolher
+        setHasProfile(!!(data && data.profile_type));
+      } catch (err) {
+        console.error("Erro ao verificar perfil:", err.message);
+        setHasProfile(false);
+      } finally {
+        setCheckingProfile(false);
+      }
+    }
+
+    if (isAuthenticated) checkProfile();
+  }, [user, isAuthenticated]);
 
   if (loading || checkingProfile) {
     return (
@@ -54,22 +49,14 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  // 🔸 Se não estiver autenticado → para login
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // 🔸 Evita redirecionar de páginas públicas (login, signup, confirm-email)
-  const publicPaths = ["/login", "/signup", "/confirm-email", "/"];
-  if (publicPaths.includes(location.pathname)) {
-    return <Outlet />;
-  }
-
-  // 🔸 Se não tem perfil → vai escolher o tipo
   if (!hasProfile && location.pathname !== "/app/choose-role") {
+    console.log("➡️ Sem perfil definido, redirecionando para /app/choose-role");
     return <Navigate to="/app/choose-role" replace />;
   }
 
-  // 🔸 Tudo certo → deixa entrar
   return children ? children : <Outlet />;
 }

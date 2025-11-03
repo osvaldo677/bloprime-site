@@ -7,14 +7,14 @@ import ChooseRole from "./ChooseRole";
 
 export default function ChooseRolePage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [profileExists, setProfileExists] = useState(false);
 
   useEffect(() => {
     async function checkExistingProfile() {
-      if (!user) return;
+      if (!user?.id) return;
       const { data, error } = await supabase
         .from("profiles")
         .select("id, profile_type")
@@ -32,50 +32,31 @@ export default function ChooseRolePage() {
     checkExistingProfile();
   }, [user]);
 
-  const handleSelect = async (role) => {
+  const handleSelect = async (profile_type) => {
     if (!user) return setError("⚠️ Sessão inválida. Faça login novamente.");
 
     setError("");
     setLoading(true);
 
     try {
-      // 🔹 Verifica se já existe perfil
-      const { data: existing, error: selectError } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
-        .select("id")
+        .update({ profile_type })
         .eq("user_id", user.id)
-        .maybeSingle();
+        .select()
+        .single();
 
-      if (selectError) throw selectError;
+      if (error) throw error;
 
-      if (existing) {
-        // Atualiza perfil existente
-        const { error: updateError } = await supabase
-          .from("profiles")
-          .update({ profile_type: role })
-          .eq("user_id", user.id);
-        if (updateError) throw updateError;
-      } else {
-        // Cria novo perfil
-        const { error: insertError } = await supabase
-          .from("profiles")
-          .insert([{ user_id: user.id, profile_type: role }]);
-        if (insertError) throw insertError;
-      }
+      console.log("✅ Perfil atualizado:", data);
 
-      // 🔹 Atualiza role em users
-      const { error: userUpdateError } = await supabase
-        .from("users")
-        .update({ role })
-        .eq("id", user.id);
-      if (userUpdateError) throw userUpdateError;
-
-      // 🔹 Atualiza localStorage
-      const updatedUser = { ...user, role };
+      // Atualiza localStorage e AuthContext
+      const updatedUser = { ...user, profile_type };
       localStorage.setItem("bloprime_user", JSON.stringify(updatedUser));
+      if (setUser) setUser(updatedUser);
 
-      // 🔹 Redireciona conforme o tipo escolhido
-      switch (role) {
+      // Redireciona conforme o tipo
+      switch (profile_type) {
         case "athlete":
           navigate("/app/registos/atleta");
           break;
@@ -103,17 +84,17 @@ export default function ChooseRolePage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
       <div className="bg-white shadow-lg rounded-2xl p-8 w-full max-w-2xl text-center">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          {profileExists ? "Atualizar o seu tipo de perfil" : "Escolha o seu tipo de perfil"}
+          {profileExists ? "Atualizar tipo de perfil" : "Escolha o seu tipo de perfil"}
         </h1>
         <p className="text-gray-500 mb-6">
           {profileExists
-            ? "Já existe um perfil associado, mas pode atualizá-lo se desejar."
-            : "Selecione abaixo o tipo de conta que pretende criar na plataforma."}
+            ? "Pode atualizar o tipo de perfil associado à sua conta."
+            : "Selecione o tipo de conta que pretende criar na plataforma."}
         </p>
 
         <ChooseRole handleSelect={handleSelect} />
 
-        {loading && <p className="text-sm text-gray-400 mt-4">A carregar...</p>}
+        {loading && <p className="text-sm text-gray-400 mt-4">A guardar...</p>}
         {error && <p className="text-red-600 text-sm mt-4">{error}</p>}
       </div>
     </div>
