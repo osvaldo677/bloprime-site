@@ -10,91 +10,124 @@ export default function ChooseRolePage() {
   const { user, setUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [profileExists, setProfileExists] = useState(false);
+  const [profileType, setProfileType] = useState(null);
 
   useEffect(() => {
-    async function checkExistingProfile() {
+    async function fetchProfile() {
       if (!user?.id) return;
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, profile_type")
+        .select("profile_type")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (error) {
-        console.error("Erro ao verificar perfil:", error.message);
+        console.error("Erro ao obter perfil:", error.message);
         return;
       }
 
-      if (data) setProfileExists(true);
+      if (data?.profile_type) {
+        setProfileType(data.profile_type);
+      }
     }
 
-    checkExistingProfile();
+    fetchProfile();
   }, [user]);
 
-  const handleSelect = async (profile_type) => {
-    if (!user) return setError("⚠️ Sessão inválida. Faça login novamente.");
+  const handleSelect = async (type) => {
+    if (!user?.id) return setError("⚠️ Sessão inválida. Faça login novamente.");
 
-    setError("");
     setLoading(true);
+    setError("");
 
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .update({ profile_type })
+        .update({ profile_type: type })
         .eq("user_id", user.id)
         .select()
         .single();
 
       if (error) throw error;
+      console.log("✅ Perfil atualizado com sucesso:", data);
 
-      console.log("✅ Perfil atualizado:", data);
-
-      // Atualiza localStorage e AuthContext
-      const updatedUser = { ...user, profile_type };
+      // Atualiza o contexto e o localStorage
+      const updatedUser = { ...user, profile_type: type };
       localStorage.setItem("bloprime_user", JSON.stringify(updatedUser));
       if (setUser) setUser(updatedUser);
+      setProfileType(type);
 
-      // Redireciona conforme o tipo
-      switch (profile_type) {
-        case "athlete":
-          navigate("/app/registos/atleta");
-          break;
-        case "coach":
-          navigate("/app/registos/treinador");
-          break;
-        case "club":
-          navigate("/app/registos/clube");
-          break;
-        case "federation":
-          navigate("/app/registos/federacao");
-          break;
-        default:
-          navigate("/app/dashboard");
-      }
+      // 🔁 Redireciona para o formulário correspondente
+      setTimeout(() => {
+        switch (type) {
+          case "athlete":
+            navigate("/app/registos/atleta", { replace: true });
+            break;
+          case "coach":
+            navigate("/app/registos/treinador", { replace: true });
+            break;
+          case "club":
+            navigate("/app/registos/clube", { replace: true });
+            break;
+          case "federation":
+            navigate("/app/registos/federacao", { replace: true });
+            break;
+          default:
+            navigate("/app/dashboard", { replace: true });
+        }
+      }, 600);
     } catch (err) {
-      console.error("Erro ao definir tipo de perfil:", err.message);
-      setError("❌ Ocorreu um erro ao definir o tipo de perfil.");
+      console.error("❌ Erro ao definir tipo de perfil:", err.message);
+      setError("Ocorreu um erro ao definir o tipo de perfil.");
     } finally {
       setLoading(false);
     }
   };
 
+  // 🔹 Se já tem perfil, vai direto
+  useEffect(() => {
+    if (profileType) {
+      switch (profileType) {
+        case "athlete":
+          navigate("/app/registos/atleta", { replace: true });
+          break;
+        case "coach":
+          navigate("/app/registos/treinador", { replace: true });
+          break;
+        case "club":
+          navigate("/app/registos/clube", { replace: true });
+          break;
+        case "federation":
+          navigate("/app/registos/federacao", { replace: true });
+          break;
+        default:
+          navigate("/app/dashboard", { replace: true });
+      }
+    }
+  }, [profileType]);
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
       <div className="bg-white shadow-lg rounded-2xl p-8 w-full max-w-2xl text-center">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          {profileExists ? "Atualizar tipo de perfil" : "Escolha o seu tipo de perfil"}
+          {profileType
+            ? "Atualizar tipo de perfil"
+            : "Escolha o seu tipo de perfil"}
         </h1>
+
         <p className="text-gray-500 mb-6">
-          {profileExists
+          {profileType
             ? "Pode atualizar o tipo de perfil associado à sua conta."
-            : "Selecione o tipo de conta que pretende criar na plataforma."}
+            : "Selecione abaixo o tipo de conta que pretende criar."}
         </p>
 
         <ChooseRole handleSelect={handleSelect} />
 
-        {loading && <p className="text-sm text-gray-400 mt-4">A guardar...</p>}
+        {loading && (
+          <p className="text-gray-400 text-sm mt-4">
+            A processar e a redirecionar...
+          </p>
+        )}
         {error && <p className="text-red-600 text-sm mt-4">{error}</p>}
       </div>
     </div>

@@ -71,5 +71,21 @@ export default function ProtectedRoute({ children }) {
   }
 
   console.log("✅ Acesso concedido:", location.pathname);
+  
+  if (hasProfile && location.pathname === "/app/choose-role") {
+  switch (user?.profile_type) {
+    case "athlete":
+      return <Navigate to="/app/registos/atleta" replace />;
+    case "coach":
+      return <Navigate to="/app/registos/treinador" replace />;
+    case "club":
+      return <Navigate to="/app/registos/clube" replace />;
+    case "federation":
+      return <Navigate to="/app/registos/federacao" replace />;
+    default:
+      return <Navigate to="/app/dashboard" replace />;
+		}
+	}
+
   return children ? children : <Outlet />;
 }
