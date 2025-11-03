@@ -1,49 +1,35 @@
 // src/components/ProtectedRoute.jsx
-import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { supabase } from "../lib/supabaseClient";
+import { Navigate, Outlet } from "react-router-dom";
 import useAuthGuard from "../hooks/useAuthGuard";
+import { supabase } from "../lib/supabaseClient";
 import { useEffect, useState } from "react";
 
 export default function ProtectedRoute({ children }) {
   const { user, isAuthenticated, loading } = useAuthGuard();
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [hasProfile, setHasProfile] = useState(false);
-  const location = useLocation();
 
   useEffect(() => {
     async function checkProfile() {
-      console.log("🔎 Verificando perfil do utilizador:", user?.id);
-
-      if (!user?.id) {
-        console.warn("⚠️ Nenhum utilizador encontrado");
+      if (!user) {
         setCheckingProfile(false);
-        setHasProfile(false);
         return;
       }
 
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, profile_type, user_id")
+          .select("id, profile_type")
           .eq("user_id", user.id)
           .maybeSingle();
 
         if (error) {
-          console.error("❌ Erro Supabase:", error.message);
-          setHasProfile(false);
-        } else if (!data) {
-          console.warn("⚠️ Nenhum perfil encontrado para:", user.id);
-          setHasProfile(false);
-        } else if (!data.profile_type || data.profile_type === "") {
-          console.warn("⚠️ Perfil sem tipo definido:", data);
-          setHasProfile(false);
+          console.error("Erro ao verificar perfil:", error.message);
         } else {
-          console.log("✅ Perfil válido encontrado:", data.profile_type);
-          setHasProfile(true);
+          setHasProfile(!!data);
         }
       } catch (err) {
-        console.error("💥 Erro inesperado:", err);
-        setHasProfile(false);
+        console.error("Erro na verificação de perfil:", err.message);
       } finally {
         setCheckingProfile(false);
       }
@@ -53,39 +39,19 @@ export default function ProtectedRoute({ children }) {
   }, [user, isAuthenticated]);
 
   if (loading || checkingProfile) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <p className="text-gray-600 text-lg">A carregar...</p>
-      </div>
-    );
+    return <p className="text-center mt-10 text-gray-600">A carregar...</p>;
   }
 
+  // 🚪 Se não estiver autenticado, volta para login
   if (!isAuthenticated) {
-    console.warn("🚫 Utilizador não autenticado. Redirecionando para /login");
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" replace />;
   }
 
-  if (!hasProfile && location.pathname !== "/app/choose-role") {
-    console.log("➡️ Sem perfil definido, redirecionando para /app/choose-role");
+  // 🚧 Se não tiver perfil, vai escolher o tipo
+  if (!hasProfile) {
     return <Navigate to="/app/choose-role" replace />;
   }
 
-  console.log("✅ Acesso concedido:", location.pathname);
-  
-  if (hasProfile && location.pathname === "/app/choose-role") {
-  switch (user?.profile_type) {
-    case "athlete":
-      return <Navigate to="/app/registos/atleta" replace />;
-    case "coach":
-      return <Navigate to="/app/registos/treinador" replace />;
-    case "club":
-      return <Navigate to="/app/registos/clube" replace />;
-    case "federation":
-      return <Navigate to="/app/registos/federacao" replace />;
-    default:
-      return <Navigate to="/app/dashboard" replace />;
-		}
-	}
-
+  // ✅ Caso contrário, deixa seguir normalmente
   return children ? children : <Outlet />;
 }
