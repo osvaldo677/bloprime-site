@@ -1,7 +1,7 @@
 // src/components/ProtectedRoute.jsx
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import useAuthGuard from "../hooks/useAuthGuard";
 import { supabase } from "../lib/supabaseClient";
+import useAuthGuard from "../hooks/useAuthGuard";
 import { useEffect, useState } from "react";
 
 export default function ProtectedRoute({ children }) {
@@ -12,26 +12,37 @@ export default function ProtectedRoute({ children }) {
 
   useEffect(() => {
     async function checkProfile() {
+      console.log("🔎 Verificando perfil do utilizador:", user?.id);
+
       if (!user?.id) {
+        console.warn("⚠️ Nenhum utilizador encontrado");
         setCheckingProfile(false);
+        setHasProfile(false);
         return;
       }
 
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, profile_type")
+          .select("id, profile_type, user_id")
           .eq("user_id", user.id)
           .maybeSingle();
 
-        if (error) throw error;
-
-        console.log("🔎 Perfil encontrado:", data);
-
-        // Se não existir perfil_type definido → precisa escolher
-        setHasProfile(!!(data && data.profile_type));
+        if (error) {
+          console.error("❌ Erro Supabase:", error.message);
+          setHasProfile(false);
+        } else if (!data) {
+          console.warn("⚠️ Nenhum perfil encontrado para:", user.id);
+          setHasProfile(false);
+        } else if (!data.profile_type || data.profile_type === "") {
+          console.warn("⚠️ Perfil sem tipo definido:", data);
+          setHasProfile(false);
+        } else {
+          console.log("✅ Perfil válido encontrado:", data.profile_type);
+          setHasProfile(true);
+        }
       } catch (err) {
-        console.error("Erro ao verificar perfil:", err.message);
+        console.error("💥 Erro inesperado:", err);
         setHasProfile(false);
       } finally {
         setCheckingProfile(false);
@@ -50,6 +61,7 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!isAuthenticated) {
+    console.warn("🚫 Utilizador não autenticado. Redirecionando para /login");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
@@ -58,5 +70,6 @@ export default function ProtectedRoute({ children }) {
     return <Navigate to="/app/choose-role" replace />;
   }
 
+  console.log("✅ Acesso concedido:", location.pathname);
   return children ? children : <Outlet />;
 }
