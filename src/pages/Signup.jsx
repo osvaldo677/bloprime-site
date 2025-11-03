@@ -54,30 +54,32 @@ export default function Signup() {
       }
 
       // 🔹 2. Envia e-mail de confirmação via Edge Function (Mailgun)
-      try {
-        console.log("📧 A enviar e-mail de confirmação via Edge Function...");
-        const mailResponse = await fetch(
-          "https://ptmprgtvhmdsdccveigt.functions.supabase.co/send-confirmation-email",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: form.email,
-              nome: form.nome,
-              token: result.confirmation_token || "temp-" + Date.now(),
-            }),
-          }
-        );
+      // 🔹 2. Envia e-mail de confirmação via Edge Function (Mailgun)
+try {
+  console.log("📧 A enviar e-mail de confirmação via Edge Function...");
+  const mailResponse = await fetch(
+    "https://ptmprgtvhmdsdccveigt.functions.supabase.co/send-confirmation-email",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: form.email,
+        nome: form.nome,
+        token: result.confirmation_token, // ✅ agora usa o token real do Supabase
+      }),
+    }
+  );
 
-        const mailResult = await mailResponse.json();
-        console.log("📨 Resultado do envio de e-mail:", mailResult);
+  const mailResult = await mailResponse.json();
+  console.log("📨 Resultado do envio de e-mail:", mailResult);
 
-        if (!mailResult.ok) {
-          console.warn("⚠️ Falha no envio do e-mail:", mailResult.error || mailResult.response);
-        }
-      } catch (mailErr) {
-        console.error("⚠️ Erro ao enviar e-mail de confirmação:", mailErr);
-      }
+  if (!mailResult.ok) {
+    console.warn("⚠️ Falha no envio do e-mail:", mailResult.error || mailResult.response);
+  }
+} catch (mailErr) {
+  console.error("⚠️ Erro ao enviar e-mail de confirmação:", mailErr);
+}
+
 
       // 🔹 3. Exibe modal de confirmação
       setMessage("✅ Conta criada! Enviámos um e-mail de confirmação.");
