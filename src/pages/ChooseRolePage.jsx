@@ -1,4 +1,3 @@
-// src/pages/ChooseRolePage.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -7,128 +6,82 @@ import ChooseRole from "./ChooseRole";
 
 export default function ChooseRolePage() {
   const navigate = useNavigate();
-  const { user, setUser } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [profileType, setProfileType] = useState(null);
 
   useEffect(() => {
-    async function fetchProfile() {
-      if (!user?.id) return;
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("profile_type")
-        .eq("user_id", user.id)
-        .maybeSingle();
+    async function checkProfile() {
+      try {
+        if (!user?.id) {
+          console.warn("⚠️ Nenhum utilizador ativo no contexto Auth.");
+          return setLoading(false);
+        }
 
-      if (error) {
-        console.error("Erro ao obter perfil:", error.message);
-        return;
-      }
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, profile_type")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-      if (data?.profile_type) {
-        setProfileType(data.profile_type);
+        if (error) throw error;
+
+        if (data?.profile_type) {
+          console.log("✅ Perfil já definido:", data.profile_type);
+          // 👉 Vai direto ao registo correspondente
+          navigate(`/app/registos/${data.profile_type}`);
+        } else {
+          console.log("🆕 Nenhum perfil definido, aguardar escolha...");
+        }
+      } catch (err) {
+        console.error("Erro ao verificar perfil:", err);
+        setError("❌ Ocorreu um erro ao carregar os dados do perfil.");
+      } finally {
+        setLoading(false);
       }
     }
 
-    fetchProfile();
-  }, [user]);
+    checkProfile();
+  }, [user, navigate]);
 
-  const handleSelect = async (type) => {
-    if (!user?.id) return setError("⚠️ Sessão inválida. Faça login novamente.");
+  const handleSelect = async (role) => {
+    if (!user?.id) {
+      setError("⚠️ Sessão inválida. Faça login novamente.");
+      return;
+    }
 
     setLoading(true);
-    setError("");
-
     try {
-      const { data, error } = await supabase
+      const { error: updateError } = await supabase
         .from("profiles")
-        .update({ profile_type: type })
-        .eq("user_id", user.id)
-        .select()
-        .single();
+        .update({ profile_type: role })
+        .eq("user_id", user.id);
 
-      if (error) throw error;
-      console.log("✅ Perfil atualizado com sucesso:", data);
+      if (updateError) throw updateError;
 
-      // Atualiza o contexto e o localStorage
-      const updatedUser = { ...user, profile_type: type };
-      localStorage.setItem("bloprime_user", JSON.stringify(updatedUser));
-      if (setUser) setUser(updatedUser);
-      setProfileType(type);
-
-      // 🔁 Redireciona para o formulário correspondente
-      setTimeout(() => {
-        switch (type) {
-          case "athlete":
-            navigate("/app/registos/atleta", { replace: true });
-            break;
-          case "coach":
-            navigate("/app/registos/treinador", { replace: true });
-            break;
-          case "club":
-            navigate("/app/registos/clube", { replace: true });
-            break;
-          case "federation":
-            navigate("/app/registos/federacao", { replace: true });
-            break;
-          default:
-            navigate("/app/dashboard", { replace: true });
-        }
-      }, 600);
+      navigate(`/app/registos/${role}`);
     } catch (err) {
-      console.error("❌ Erro ao definir tipo de perfil:", err.message);
-      setError("Ocorreu um erro ao definir o tipo de perfil.");
+      console.error("Erro ao atualizar tipo de perfil:", err);
+      setError("❌ Ocorreu um erro ao definir o tipo de perfil.");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔹 Se já tem perfil, vai direto
-  useEffect(() => {
-    if (profileType) {
-      switch (profileType) {
-        case "athlete":
-          navigate("/app/registos/atleta", { replace: true });
-          break;
-        case "coach":
-          navigate("/app/registos/treinador", { replace: true });
-          break;
-        case "club":
-          navigate("/app/registos/clube", { replace: true });
-          break;
-        case "federation":
-          navigate("/app/registos/federacao", { replace: true });
-          break;
-        default:
-          navigate("/app/dashboard", { replace: true });
-      }
-    }
-  }, [profileType]);
+  if (loading) return <p className="text-center mt-20 text-gray-600">A carregar...</p>;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
       <div className="bg-white shadow-lg rounded-2xl p-8 w-full max-w-2xl text-center">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          {profileType
-            ? "Atualizar tipo de perfil"
-            : "Escolha o seu tipo de perfil"}
+          Atualizar tipo de perfil
         </h1>
-
         <p className="text-gray-500 mb-6">
-          {profileType
-            ? "Pode atualizar o tipo de perfil associado à sua conta."
-            : "Selecione abaixo o tipo de conta que pretende criar."}
+          Pode atualizar o tipo de perfil associado à sua conta.
         </p>
 
+        {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
         <ChooseRole handleSelect={handleSelect} />
-
-        {loading && (
-          <p className="text-gray-400 text-sm mt-4">
-            A processar e a redirecionar...
-          </p>
-        )}
-        {error && <p className="text-red-600 text-sm mt-4">{error}</p>}
       </div>
     </div>
   );
