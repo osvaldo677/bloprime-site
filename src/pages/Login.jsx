@@ -26,18 +26,41 @@ const handleSubmit = async (e) => {
   setMsg("");
   setLoading(true);
 
-  const { success, message } = await login(email, password);
+  try {
+    const { data, error } = await supabase.rpc("manual_login", {
+      p_email: email,
+      p_password: password,
+    });
 
-  if (!success) {
-    setMsg(message || "Ocorreu um erro no login.");
+    if (error) throw error;
+
+    const result = data && data[0];
+    if (!result) {
+      throw new Error("Erro inesperado ao processar o login.");
+    }
+
+    if (!result.ok) {
+      setMsg("⚠️ " + result.message);
+      setLoading(false);
+      return;
+    }
+
+    console.log("✅ Login bem-sucedido:", result);
+
+    // Armazena sessão manualmente
+    localStorage.setItem("bloprime_user", JSON.stringify(result));
+
+    // Redireciona
+    setMsg("✅ Login efetuado com sucesso!");
+    navigate("/app/choose-role", { replace: true });
+  } catch (err) {
+    console.error("Erro no login:", err);
+    setMsg("❌ " + (err.message || "Erro inesperado."));
+  } finally {
     setLoading(false);
-    return;
   }
-
-  setLoading(false);
-  // Se o perfil ainda não tem role, o ProtectedRoute leva para /app/choose-role
-  navigate("/app/dashboard", { replace: true });
 };
+
 
 
   return (
