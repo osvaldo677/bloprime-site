@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { supabase } from "../lib/supabaseClient";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -12,65 +11,36 @@ export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const traduzErro = (errorMsg) => {
-    const lower = errorMsg?.toLowerCase() || "";
-    if (lower.includes("email not confirmed"))
-      return "⚠️ O seu email ainda não foi confirmado. Verifique a caixa de entrada.";
-    if (lower.includes("invalid login credentials"))
-      return "⚠️ Credenciais inválidas. Verifique o email e a palavra-passe.";
-    return "⚠️ " + errorMsg;
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMsg("");
+    setLoading(true);
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setMsg("");
-  setLoading(true);
+    const res = await login(email, password);
 
-  try {
-    const { data, error } = await supabase.rpc("manual_login", {
-      p_email: email,
-      p_password: password,
-    });
-
-    if (error) throw error;
-
-    const result = data && data[0];
-    if (!result) {
-      throw new Error("Erro inesperado ao processar o login.");
-    }
-
-    if (!result.ok) {
-      setMsg("⚠️ " + result.message);
-      setLoading(false);
-      return;
-    }
-
-    console.log("✅ Login bem-sucedido:", result);
-
-    // Armazena sessão manualmente
-    localStorage.setItem("bloprime_user", JSON.stringify(result));
-
-    // Redireciona
-    setMsg("✅ Login efetuado com sucesso!");
-    navigate("/app/choose-role", { replace: true });
-  } catch (err) {
-    console.error("Erro no login:", err);
-    setMsg("❌ " + (err.message || "Erro inesperado."));
-  } finally {
     setLoading(false);
-  }
-};
 
+    if (!res.success) {
+      const t = (res.message || "").toLowerCase();
+      if (t.includes("não foi confirmado") || t.includes("email") && t.includes("confirm"))
+        return setMsg("⚠️ O seu e-mail ainda não foi confirmado. Verifique a caixa de entrada.");
+      if (t.includes("credenciais") || t.includes("password") || t.includes("palavra"))
+        return setMsg("⚠️ Credenciais inválidas. Verifique e-mail e palavra-passe.");
+      return setMsg("❌ " + (res.message || "Erro inesperado."));
+    }
 
+    // sucesso: deixa o ProtectedRoute/guards decidirem
+    // – se não tem perfil/role vai para /app/choose-role
+    // – caso contrário vai ao dashboard ou ao formulário correto via menu
+    navigate("/app", { replace: true });
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl shadow-md w-full max-w-sm">
-        <h1 className="text-2xl font-bold mb-6 text-center text-blue-700">
-          Entrar
-        </h1>
+        <h1 className="text-2xl font-bold mb-6 text-center text-blue-700">Entrar</h1>
 
-        {msg && <p className="mb-4 text-center text-red-600">{msg}</p>}
+        {msg && <p className="mb-4 text-center text-red-600 whitespace-pre-line">{msg}</p>}
 
         <input
           type="email"
@@ -98,17 +68,11 @@ const handleSubmit = async (e) => {
           {loading ? "🔑 A entrar..." : "Entrar"}
         </button>
 
-        <p
-          onClick={() => navigate("/signup")}
-          className="mt-4 text-center text-sm text-blue-600 cursor-pointer hover:underline"
-        >
+        <p onClick={() => navigate("/signup")} className="mt-4 text-center text-sm text-blue-600 cursor-pointer hover:underline">
           Ainda não tem conta? Criar conta
         </p>
 
-        <Link
-          to="/forgot-password"
-          className="block mt-2 text-center text-sm text-blue-600 hover:underline"
-        >
+        <Link to="/forgot-password" className="block mt-2 text-center text-sm text-blue-600 hover:underline">
           Esqueceu a palavra-passe?
         </Link>
       </form>

@@ -4,19 +4,36 @@ import { supabase } from "../lib/supabaseClient";
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
+  // carrega do localStorage ao arrancar
   const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem("bloprime_user");
-    return stored ? JSON.parse(stored) : null;
+    try {
+      const raw = localStorage.getItem("bloprime_user");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
   });
 
-  // sincroniza alterações no localStorage em tempo real
+  // persiste sempre que mudar
   useEffect(() => {
-    if (user) {
-      localStorage.setItem("bloprime_user", JSON.stringify(user));
-    } else {
-      localStorage.removeItem("bloprime_user");
-    }
+    if (user) localStorage.setItem("bloprime_user", JSON.stringify(user));
+    else localStorage.removeItem("bloprime_user");
   }, [user]);
+
+  // mantém sessões em múltiplos separadores alinhadas
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === "bloprime_user") {
+        try {
+          setUser(e.newValue ? JSON.parse(e.newValue) : null);
+        } catch {
+          setUser(null);
+        }
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   const login = async (email, password) => {
     try {
@@ -24,15 +41,24 @@ export function AuthProvider({ children }) {
         p_email: email,
         p_password: password,
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
-      const u = data?.[0];
-      if (!u) throw new Error("Credenciais inválidas ou e-mail não confirmado.");
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row) throw new Error("Credenciais inválidas ou e-mail não confirmado.");
+
+      // normaliza o shape esperado pelo resto da app
+      const u = {
+        id: row.id,
+        email: row.email,
+        nome: row.nome,
+        role: row.role || null,
+        email_confirmed: !!row.email_confirmed,
+      };
 
       setUser(u);
-      return { success: true };
+      return { success: true, user: u };
     } catch (err) {
-      return { success: false, message: err.message };
+      return { success: false, message: err.message || "Falha no login." };
     }
   };
 
@@ -43,24 +69,27 @@ export function AuthProvider({ children }) {
         p_password: password,
         p_nome: nome || null,
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
-      const newUser = data?.[0];
-      if (newUser) setUser(newUser);
-
-      return { success: true };
+      const row = Array.isArray(data) ? data[0] : data;
+      // não guardamos o utilizador aqui; ele ainda precisa confirmar e-mail
+      return { success: true, pending: true, raw: row };
     } catch (err) {
-      return { success: false, message: err.message };
+      return { success: false, message: err.message || "Falha no registo." };
     }
   };
 
   const logout = () => setUser(null);
 
-  return (
-    <AuthContext.Provider value={{ user, login, signup, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    user,
+    isAuthenticated: !!user,
+    login,
+    signup,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => useContext(AuthContext);
