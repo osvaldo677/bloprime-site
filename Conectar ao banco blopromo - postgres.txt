@@ -1,0 +1,10 @@
+Como me conectar ao banco blopromo em postgres local
+Entrar em cmd ou powershell
+
+psql -U postgres -d blopromo
+
+
+Base local: postgres
+atinga:	postgres
+passe: M6sE7lfbP
+postgres=# ALTER USER postgres WITH PASSWORD 'M6sE7lfbP';
